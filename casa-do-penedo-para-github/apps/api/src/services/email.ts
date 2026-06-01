@@ -64,7 +64,7 @@ function buildEmailContent({ reservation, property }: ReservationEmailInput) {
     "",
     "Obrigado,",
     "Casa do Penedo",
-    property.address ?? "Fafe, Braga, Portugal",
+    property.address ?? "Portugal",
   ]
     .filter(Boolean)
     .join("\n");
