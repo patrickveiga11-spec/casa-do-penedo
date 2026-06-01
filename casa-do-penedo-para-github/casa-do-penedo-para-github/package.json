@@ -1,0 +1,24 @@
+{
+  "name": "casa-do-penedo",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:db -w @casa/api\" \"npm run dev -w @casa/api\" \"npm run dev -w @casa/web\"",
+    "dev:api": "npm run dev -w @casa/api",
+    "dev:web": "npm run dev -w @casa/web",
+    "dev:db": "npm run dev:db -w @casa/api",
+    "build": "npm run build -w @casa/api && npm run build -w @casa/web",
+    "build:api": "npm run build -w @casa/api",
+    "build:web": "npm run build -w @casa/web",
+    "start:api": "npm run db:migrate:deploy -w @casa/api && npm run start -w @casa/api",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:migrate": "npm run db:migrate -w @casa/api",
+    "db:seed": "npm run db:seed -w @casa/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
