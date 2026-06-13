@@ -3,7 +3,7 @@ import { prisma } from "../lib/prisma.js";
 import { assertAvailable, findAvailabilityConflicts } from "../services/availability.js";
 import { calculateDynamicPrice, applyReservationDiscount } from "../services/pricing.js";
 import { sendReservationCancellation, sendReservationConfirmation } from "../services/email.js";
-import { createBlockSchema, createPricingRuleSchema, createReservationSchema, quoteSchema } from "../schemas.js";
+import { createBlockSchema, createPricingRuleSchema, createReservationSchema, quoteSchema, updateReservationSchema } from "../schemas.js";
 import { formatDate, monthBounds, nightsInRange, toDateOnly } from "../lib/dates.js";
 import { requireAdmin, verifyAdminToken } from "../lib/admin-auth.js";
 
@@ -185,6 +185,49 @@ export async function reservationRoutes(app: FastifyInstance) {
     await prisma.reservation.delete({ where: { id } });
 
     return reply.send({ success: true, emailSent, emailError });
+  });
+
+  app.patch("/reservations/:id", { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = updateReservationSchema.parse(request.body);
+
+    const existing = await prisma.reservation.findUnique({
+      where: { id },
+      include: { property: true },
+    });
+
+    if (!existing) {
+      return reply.status(404).send({ error: "Reserva não encontrada" });
+    }
+
+    const pricingRules = await prisma.pricingRule.findMany({
+      where: { propertyId: existing.propertyId, isActive: true },
+    });
+
+    const pricing = calculateDynamicPrice(
+      Number(existing.property.basePrice),
+      existing.property.currency,
+      existing.checkIn,
+      existing.checkOut,
+      pricingRules,
+      existing.guests
+    );
+
+    const totalPrice = applyReservationDiscount(pricing.subtotal, body.discountPercent);
+
+    const reservation = await prisma.reservation.update({
+      where: { id },
+      data: {
+        totalPrice,
+        discountPercent: body.discountPercent > 0 ? body.discountPercent : null,
+      },
+      include: { property: true },
+    });
+
+    return reply.send({
+      ...reservation,
+      subtotalBeforeDiscount: pricing.subtotal,
+    });
   });
 
   app.post("/reservations/check-availability", async (request) => {

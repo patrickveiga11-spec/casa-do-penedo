@@ -82,6 +82,12 @@ export const api = {
       method: "DELETE",
       admin: true,
     }),
+  updateReservationDiscount: (id: string, discountPercent: number) =>
+    request<Reservation>(`/reservations/${id}`, {
+      method: "PATCH",
+      admin: true,
+      body: JSON.stringify({ discountPercent }),
+    }),
   checkAvailability: (data: QuoteInput) =>
     request<AvailabilityResult>("/reservations/check-availability", {
       method: "POST",
@@ -112,6 +118,7 @@ export interface Reservation {
   id: string;
   guestName: string;
   guestEmail: string | null;
+  guestPhone: string | null;
   checkIn: string;
   checkOut: string;
   guests: number;
@@ -119,7 +126,9 @@ export interface Reservation {
   discountPercent?: string | null;
   currency: string;
   status: string;
+  notes?: string | null;
   emailSent?: boolean;
+  subtotalBeforeDiscount?: number;
 }
 
 export interface AvailabilityBlock {

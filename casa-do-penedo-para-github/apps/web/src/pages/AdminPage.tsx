@@ -40,6 +40,13 @@ export default function AdminPage() {
     discountPercent: 0,
   });
   const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
+  const [selectedReservationId, setSelectedReservationId] = useState<string | null>(null);
+  const [editDiscount, setEditDiscount] = useState(0);
+  const [detailSubtotal, setDetailSubtotal] = useState<number | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [detailNotice, setDetailNotice] = useState<string | null>(null);
+  const [savingDiscountId, setSavingDiscountId] = useState<string | null>(null);
   const [quoteTotal, setQuoteTotal] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -59,6 +66,8 @@ export default function AdminPage() {
   );
   const finalQuoteTotal =
     quoteTotal !== null ? Math.round(quoteTotal * (1 - form.discountPercent / 100) * 100) / 100 : null;
+  const detailFinalTotal =
+    detailSubtotal !== null ? Math.round(detailSubtotal * (1 - editDiscount / 100) * 100) / 100 : null;
 
   async function loadAll(selectedProperty: Property) {
     const [kpiData, calendar, reservationData, ruleData] = await Promise.all([
@@ -129,6 +138,56 @@ export default function AdminPage() {
       checkOut: dateKeyFromIso(reservation.checkOut),
     });
     document.getElementById("admin-calendar")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function openReservationDetails(reservation: Reservation) {
+    if (selectedReservationId === reservation.id) {
+      setSelectedReservationId(null);
+      setDetailError(null);
+      setDetailNotice(null);
+      return;
+    }
+
+    if (!property) return;
+
+    setSelectedReservationId(reservation.id);
+    setDetailError(null);
+    setDetailNotice(null);
+    setEditDiscount(Number(reservation.discountPercent ?? 0));
+    setDetailSubtotal(null);
+    setDetailLoading(true);
+
+    try {
+      const quote = await api.getQuote({
+        propertyId: property.id,
+        checkIn: dateKeyFromIso(reservation.checkIn),
+        checkOut: dateKeyFromIso(reservation.checkOut),
+        guests: reservation.guests,
+      });
+      setDetailSubtotal(quote.subtotal);
+    } catch (err) {
+      setDetailError(err instanceof Error ? err.message : "Erro ao calcular preço");
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  async function handleSaveDiscount(reservation: Reservation) {
+    if (!property) return;
+
+    setSavingDiscountId(reservation.id);
+    setDetailError(null);
+    setDetailNotice(null);
+
+    try {
+      await api.updateReservationDiscount(reservation.id, editDiscount);
+      setDetailNotice("Desconto guardado.");
+      await loadAll(property);
+    } catch (err) {
+      setDetailError(err instanceof Error ? err.message : "Erro ao guardar desconto");
+    } finally {
+      setSavingDiscountId(null);
+    }
   }
 
   async function handleCreateReservation(event: React.FormEvent) {
@@ -303,67 +362,146 @@ export default function AdminPage() {
         <section className="stack">
           <div className="panel">
             <h2>Reservas activas</h2>
-            <p className="muted-text panel-hint">Clica em «Suprimir» para cancelar uma reserva.</p>
+            <p className="muted-text panel-hint">
+              Clica em «Detalhes» para ver contactos e aplicar desconto. «Suprimir» cancela a reserva.
+            </p>
             {deleteNotice && <div className="alert success">{deleteNotice}</div>}
             {deleteError && <div className="alert">{deleteError}</div>}
             {sortedReservations.length === 0 ? (
               <p className="empty">Sem reservas.</p>
             ) : (
               sortedReservations.map((reservation) => (
-                <div className="list-item reservation-item" key={reservation.id}>
-                  <div>
-                    <strong>{reservation.guestName}</strong>
-                    <ReservationDatesLink
-                      checkIn={reservation.checkIn}
-                      checkOut={reservation.checkOut}
-                      guests={reservation.guests}
-                      onOpenCalendar={() => openReservationOnCalendar(reservation)}
-                    />
-                  </div>
-                  <div className="reservation-actions">
-                    <div className="reservation-price">
-                      <div>{formatMoney(reservation.totalPrice, reservation.currency)}</div>
-                      {reservation.discountPercent && Number(reservation.discountPercent) > 0 && (
-                        <span className="muted-text">Desconto {reservation.discountPercent}%</span>
-                      )}
-                      <span className="badge">{reservation.status}</span>
+                <div className="reservation-row" key={reservation.id}>
+                  <div className="list-item reservation-item">
+                    <div>
+                      <strong>{reservation.guestName}</strong>
+                      <ReservationDatesLink
+                        checkIn={reservation.checkIn}
+                        checkOut={reservation.checkOut}
+                        guests={reservation.guests}
+                        onOpenCalendar={() => openReservationOnCalendar(reservation)}
+                      />
                     </div>
-                    {confirmDeleteId === reservation.id ? (
-                      <div className="confirm-delete">
-                        <span className="muted-text">Suprimir?</span>
+                    <div className="reservation-actions">
+                      <div className="reservation-price">
+                        <div>{formatMoney(reservation.totalPrice, reservation.currency)}</div>
+                        {reservation.discountPercent && Number(reservation.discountPercent) > 0 && (
+                          <span className="muted-text">Desconto {reservation.discountPercent}%</span>
+                        )}
+                        <span className="badge">{reservation.status}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn secondary btn-small"
+                        onClick={() => openReservationDetails(reservation)}
+                      >
+                        {selectedReservationId === reservation.id ? "Fechar" : "Detalhes"}
+                      </button>
+                      {confirmDeleteId === reservation.id ? (
+                        <div className="confirm-delete">
+                          <span className="muted-text">Suprimir?</span>
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-small"
+                            disabled={deletingId === reservation.id}
+                            onClick={() => handleDeleteReservation(reservation)}
+                          >
+                            {deletingId === reservation.id ? "A suprimir…" : "Sim"}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn secondary btn-small"
+                            disabled={deletingId === reservation.id}
+                            onClick={() => {
+                              setConfirmDeleteId(null);
+                              setDeleteError(null);
+                            }}
+                          >
+                            Não
+                          </button>
+                        </div>
+                      ) : (
                         <button
                           type="button"
                           className="btn btn-danger btn-small"
-                          disabled={deletingId === reservation.id}
-                          onClick={() => handleDeleteReservation(reservation)}
-                        >
-                          {deletingId === reservation.id ? "A suprimir…" : "Sim"}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn secondary btn-small"
-                          disabled={deletingId === reservation.id}
                           onClick={() => {
-                            setConfirmDeleteId(null);
+                            setConfirmDeleteId(reservation.id);
                             setDeleteError(null);
                           }}
                         >
-                          Não
+                          Suprimir
                         </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {selectedReservationId === reservation.id && (
+                    <div className="reservation-detail">
+                      {detailNotice && <div className="alert success">{detailNotice}</div>}
+                      {detailError && <div className="alert">{detailError}</div>}
+                      <div className="detail-grid">
+                        <div>
+                          <span className="muted-text">Email</span>
+                          <strong>{reservation.guestEmail ?? "—"}</strong>
+                        </div>
+                        <div>
+                          <span className="muted-text">Telemóvel</span>
+                          <strong>{reservation.guestPhone ?? "—"}</strong>
+                        </div>
+                        <div>
+                          <span className="muted-text">Check-in</span>
+                          <strong>{formatDate(reservation.checkIn)}</strong>
+                        </div>
+                        <div>
+                          <span className="muted-text">Check-out</span>
+                          <strong>{formatDate(reservation.checkOut)}</strong>
+                        </div>
+                        <div>
+                          <span className="muted-text">Hóspedes</span>
+                          <strong>{reservation.guests}</strong>
+                        </div>
+                        <div>
+                          <span className="muted-text">Total actual</span>
+                          <strong>{formatMoney(reservation.totalPrice, reservation.currency)}</strong>
+                        </div>
                       </div>
-                    ) : (
+
+                      <div className="field">
+                        <label htmlFor={`discount-${reservation.id}`}>Desconto (%)</label>
+                        <input
+                          id={`discount-${reservation.id}`}
+                          type="number"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={editDiscount}
+                          onChange={(event) =>
+                            setEditDiscount(Number(event.target.value) || 0)
+                          }
+                        />
+                      </div>
+
+                      {detailLoading ? (
+                        <p className="muted-text">A calcular preço…</p>
+                      ) : detailSubtotal !== null ? (
+                        <div className="quote-box">
+                          Preço antes do desconto
+                          <strong>{formatMoney(detailSubtotal, reservation.currency)}</strong>
+                          Total com {editDiscount}% de desconto
+                          <strong>{formatMoney(detailFinalTotal ?? detailSubtotal, reservation.currency)}</strong>
+                        </div>
+                      ) : null}
+
                       <button
                         type="button"
-                        className="btn btn-danger btn-small"
-                        onClick={() => {
-                          setConfirmDeleteId(reservation.id);
-                          setDeleteError(null);
-                        }}
+                        className="btn"
+                        disabled={savingDiscountId === reservation.id || detailLoading}
+                        onClick={() => handleSaveDiscount(reservation)}
                       >
-                        Suprimir
+                        {savingDiscountId === reservation.id ? "A guardar…" : "Guardar desconto"}
                       </button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               ))
             )}

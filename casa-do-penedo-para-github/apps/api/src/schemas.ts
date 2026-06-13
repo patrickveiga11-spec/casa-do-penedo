@@ -13,6 +13,10 @@ export const createReservationSchema = z.object({
   discountPercent: z.number().min(0).max(100).optional(),
 });
 
+export const updateReservationSchema = z.object({
+  discountPercent: z.number().min(0).max(100),
+});
+
 export const createPricingRuleSchema = z.object({
   propertyId: z.string(),
   name: z.string().min(1),
