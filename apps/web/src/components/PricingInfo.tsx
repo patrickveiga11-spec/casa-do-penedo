@@ -14,6 +14,13 @@ export function PricingInfo({ rules }: { rules: PricingRule[] }) {
         </div>
         <div className="list-item">
           <div>
+            <strong>Fim-de-semana (1 noite)</strong>
+            <div className="muted-text">Sexta→sábado ou sábado→domingo</div>
+          </div>
+          <span className="badge">200€</span>
+        </div>
+        <div className="list-item">
+          <div>
             <strong>Hóspede extra</strong>
             <div className="muted-text">8.º a 10.º hóspede</div>
           </div>

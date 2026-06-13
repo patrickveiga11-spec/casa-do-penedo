@@ -82,11 +82,14 @@ export const api = {
       method: "DELETE",
       admin: true,
     }),
-  updateReservationDiscount: (id: string, discountPercent: number) =>
-    request<Reservation>(`/reservations/${id}`, {
+  updateReservationPricing: (
+    id: string,
+    data: { discountPercent?: number; totalPrice?: number }
+  ) =>
+    request<Reservation & { subtotalBeforeDiscount?: number }>(`/reservations/${id}`, {
       method: "PATCH",
       admin: true,
-      body: JSON.stringify({ discountPercent }),
+      body: JSON.stringify(data),
     }),
   validateReservation: (id: string) =>
     request<Reservation>(`/reservations/${id}/validate`, { method: "POST", admin: true }),

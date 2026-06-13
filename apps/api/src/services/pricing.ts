@@ -4,6 +4,7 @@ import { eachNight, formatDate } from "../lib/dates.js";
 export const INCLUDED_GUESTS = 7;
 export const EXTRA_GUEST_FEE = 15;
 export const MAX_GUESTS = 10;
+export const WEEKEND_SINGLE_NIGHT_RATE = 200;
 
 export function extraGuestFee(guests: number): number {
   const extraGuests = Math.max(0, Math.min(guests, MAX_GUESTS) - INCLUDED_GUESTS);
@@ -50,6 +51,15 @@ function applyModifier(price: number, rule: PricingRule): number {
   return Math.max(0, price * (1 + modifier / 100));
 }
 
+/** Uma noite de sexta→sábado ou sábado→domingo. */
+export function isWeekendSingleNight(checkIn: Date, checkOut: Date): boolean {
+  const nights = eachNight(checkIn, checkOut);
+  if (nights.length !== 1) return false;
+
+  const day = nights[0].getUTCDay();
+  return day === 5 || day === 6;
+}
+
 export function calculateDynamicPrice(
   basePrice: number,
   currency: string,
@@ -60,8 +70,32 @@ export function calculateDynamicPrice(
 ): PriceBreakdown {
   const nights = eachNight(checkIn, checkOut);
   const nightCount = nights.length;
-  const sortedRules = [...rules].sort((a, b) => b.priority - a.priority);
   const guestSurcharge = extraGuestFee(guests);
+
+  if (isWeekendSingleNight(checkIn, checkOut)) {
+    const adjustedPrice = Math.round((WEEKEND_SINGLE_NIGHT_RATE + guestSurcharge) * 100) / 100;
+    const appliedRules = [`Fim-de-semana (1 noite): ${WEEKEND_SINGLE_NIGHT_RATE}€`];
+    if (guestSurcharge > 0) {
+      appliedRules.push(`+${guestSurcharge}€ hóspedes extra`);
+    }
+
+    return {
+      nights: [
+        {
+          date: formatDate(nights[0]),
+          basePrice: WEEKEND_SINGLE_NIGHT_RATE,
+          guestSurcharge,
+          adjustedPrice,
+          appliedRules,
+        },
+      ],
+      subtotal: adjustedPrice,
+      currency,
+      guests,
+    };
+  }
+
+  const sortedRules = [...rules].sort((a, b) => b.priority - a.priority);
 
   const breakdown: PriceBreakdownNight[] = nights.map((date) => {
     let adjustedPrice = nightlyRateBeforeRules(basePrice, guests);
