@@ -10,6 +10,8 @@ interface CalendarViewProps {
   monthLabel?: string;
   onPrevMonth?: () => void;
   onNextMonth?: () => void;
+  onToday?: () => void;
+  todayLabel?: string;
   /** Quando definido, o × só aparece nestas datas (página pública). */
   selectedRange?: { checkIn: string; checkOut: string };
   /** Destaca um intervalo no calendário (gestão). */
@@ -24,6 +26,8 @@ export function CalendarView({
   monthLabel,
   onPrevMonth,
   onNextMonth,
+  onToday,
+  todayLabel = "Hoje",
   selectedRange,
   focusRange,
 }: CalendarViewProps) {
@@ -85,7 +89,7 @@ export function CalendarView({
 
   return (
     <div>
-      {(monthLabel || onPrevMonth || onNextMonth) && (
+      {(monthLabel || onPrevMonth || onNextMonth || onToday) && (
         <div className="calendar-nav">
           {onPrevMonth ? (
             <button type="button" className="btn secondary btn-small" onClick={onPrevMonth}>
@@ -95,13 +99,20 @@ export function CalendarView({
             <span />
           )}
           {monthLabel && <strong className="calendar-month">{monthLabel}</strong>}
-          {onNextMonth ? (
-            <button type="button" className="btn secondary btn-small" onClick={onNextMonth}>
-              →
-            </button>
-          ) : (
-            <span />
-          )}
+          <div className="calendar-nav-actions">
+            {onToday && (
+              <button type="button" className="btn secondary btn-small" onClick={onToday}>
+                {todayLabel}
+              </button>
+            )}
+            {onNextMonth ? (
+              <button type="button" className="btn secondary btn-small" onClick={onNextMonth}>
+                →
+              </button>
+            ) : (
+              <span />
+            )}
+          </div>
         </div>
       )}
       <div className="calendar-grid">

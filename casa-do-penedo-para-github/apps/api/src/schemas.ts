@@ -5,7 +5,7 @@ export const createReservationSchema = z.object({
   channelId: z.string().optional(),
   guestName: z.string().min(1),
   guestEmail: z.string().email().optional(),
-  guestPhone: z.string().optional(),
+  guestPhone: z.string().trim().min(4, "Telemóvel é obrigatório"),
   checkIn: z.string(),
   checkOut: z.string(),
   guests: z.number().int().min(1).max(10).default(1),

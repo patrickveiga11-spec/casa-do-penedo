@@ -43,7 +43,7 @@ Substitui `TEU-UTILIZADOR` pelo teu nome de utilizador GitHub.
 4. Se usares o ficheiro `render.yaml` do projecto, o Render preenche quase tudo.
 5. Se criares manualmente:
    - **Root Directory:** (vazio — raiz do repo)
-   - **Build Command:** `npm install && npm run build:api`
+   - **Build Command:** `npm install --include=dev && npm run build:api`
    - **Start Command:** `npm run start:api`
    - **Plan:** Free
 6. **Environment Variables** (Environment):
@@ -55,6 +55,10 @@ Substitui `TEU-UTILIZADOR` pelo teu nome de utilizador GitHub.
 | `BREVO_API_KEY` | a tua chave Brevo (`xkeysib-...`) |
 | `SMTP_FROM` | `Casa do Penedo <casa_do_penedo@outlook.com>` |
 | `OWNER_EMAIL` | `casa_do_penedo@outlook.com` |
+| `NODE_ENV` | `production` (só depois do 1.º deploy bem-sucedido, ou usa o Build Command abaixo) |
+
+**Nota:** com `NODE_ENV=production`, o Render não instala TypeScript e o build falha. Usa sempre:
+`npm install --include=dev && npm run build:api`
 
 7. Clica **Deploy** e espera ficar **Live**.
 8. Copia o URL da API, ex.: `https://casa-do-penedo-api.onrender.com`

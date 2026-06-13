@@ -64,7 +64,6 @@ function buildEmailContent({ reservation, property }: ReservationEmailInput) {
     "",
     "Obrigado,",
     "Casa do Penedo",
-    property.address ?? "Portugal",
   ]
     .filter(Boolean)
     .join("\n");
@@ -81,7 +80,7 @@ function buildEmailContent({ reservation, property }: ReservationEmailInput) {
         <tr><td style="padding: 8px 0; color: #6b7280;">Total estimado</td><td style="padding: 8px 0;"><strong>${total}</strong></td></tr>
       </table>
       <p>Entraremos em contacto em breve para confirmar pagamento e detalhes da estadia.</p>
-      <p style="color: #6b7280; margin-top: 32px;">Casa do Penedo<br>${property.address ?? "Fafe, Braga, Portugal"}</p>
+      <p style="color: #6b7280; margin-top: 32px;">Casa do Penedo</p>
     </div>
   `;
 

@@ -3,7 +3,7 @@ services:
     name: casa-do-penedo-api
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build:api
+    buildCommand: npm install --include=dev && npm run build:api
     startCommand: npm run start:api
     healthCheckPath: /health
     envVars:

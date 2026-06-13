@@ -169,7 +169,7 @@ export interface CreateReservationInput {
   propertyId: string;
   guestName: string;
   guestEmail?: string;
-  guestPhone?: string;
+  guestPhone: string;
   checkIn: string;
   checkOut: string;
   guests: number;

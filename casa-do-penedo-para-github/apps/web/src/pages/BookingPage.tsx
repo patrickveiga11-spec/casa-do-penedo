@@ -103,6 +103,13 @@ export default function BookingPage() {
     setSubmitting(true);
     setFormError(null);
 
+    const phone = form.guestPhone.trim();
+    if (phone.length < 4) {
+      setFormError("Indica um número de telemóvel (pode ser de qualquer país).");
+      setSubmitting(false);
+      return;
+    }
+
     try {
       const availability = await api.checkAvailability({
         propertyId: property.id,
@@ -120,7 +127,7 @@ export default function BookingPage() {
         propertyId: property.id,
         guestName: form.guestName,
         guestEmail: form.guestEmail,
-        guestPhone: form.guestPhone || undefined,
+        guestPhone: phone,
         checkIn: form.checkIn,
         checkOut: form.checkOut,
         guests: form.guests,
@@ -264,7 +271,9 @@ export default function BookingPage() {
                   type="tel"
                   value={form.guestPhone}
                   onChange={(event) => setForm({ ...form, guestPhone: event.target.value })}
-                  placeholder="+351 ..."
+                  placeholder="+351 912 345 678 ou outro país"
+                  required
+                  minLength={4}
                 />
               </div>
               <div className="field-row">

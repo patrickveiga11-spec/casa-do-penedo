@@ -46,8 +46,12 @@ export function parseDateKey(value: string) {
   return new Date(year, month - 1, day);
 }
 
+export function startOfMonth(date = new Date()) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
 export function monthRange(date = new Date()) {
-  const start = new Date(date.getFullYear(), date.getMonth(), 1);
+  const start = startOfMonth(date);
   const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
   return {
     from: toDateKey(start),

@@ -12,7 +12,15 @@ import { DateField } from "../components/DateField";
 import { LogoHeader } from "../components/LogoHeader";
 import { PricingInfo } from "../components/PricingInfo";
 import { ReservationDatesLink } from "../components/ReservationDatesLink";
-import { formatDate, formatMoney, monthRange, dateKeyFromIso, parseDateKey } from "../lib/format";
+import { formatDate, formatMoney, monthRange, dateKeyFromIso, parseDateKey, startOfMonth } from "../lib/format";
+
+function currentYear() {
+  return new Date().getFullYear();
+}
+
+function isInCurrentYear(date: Date) {
+  return date.getFullYear() === currentYear();
+}
 
 export default function AdminPage() {
   const [property, setProperty] = useState<Property | null>(null);
@@ -25,6 +33,7 @@ export default function AdminPage() {
   const [form, setForm] = useState({
     guestName: "",
     guestEmail: "",
+    guestPhone: "",
     checkIn: "",
     checkOut: "",
     guests: 2,
@@ -35,7 +44,7 @@ export default function AdminPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [calendarMonth, setCalendarMonth] = useState(new Date());
+  const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()));
   const [calendarFocusRange, setCalendarFocusRange] = useState<
     { checkIn: string; checkOut: string } | undefined
   >();
@@ -145,12 +154,13 @@ export default function AdminPage() {
         propertyId: property.id,
         guestName: form.guestName,
         guestEmail: form.guestEmail || undefined,
+        guestPhone: form.guestPhone.trim(),
         checkIn: form.checkIn,
         checkOut: form.checkOut,
         guests: form.guests,
       });
 
-      setForm({ guestName: "", guestEmail: "", checkIn: "", checkOut: "", guests: 2 });
+      setForm({ guestName: "", guestEmail: "", guestPhone: "", checkIn: "", checkOut: "", guests: 2 });
       await loadAll(property);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Erro ao criar reserva");
@@ -229,21 +239,39 @@ export default function AdminPage() {
 
       <div className="layout">
         <section className="panel" id="admin-calendar">
-          <h2>Calendário</h2>
+          <h2>Calendário {currentYear()}</h2>
           <CalendarView
             reservations={reservations}
             blocks={blocks}
             from={range.from}
             focusRange={calendarFocusRange}
             monthLabel={range.label}
-            onPrevMonth={() => {
+            onToday={() => {
               setCalendarFocusRange(undefined);
-              setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
+              setCalendarMonth(startOfMonth(new Date()));
             }}
-            onNextMonth={() => {
-              setCalendarFocusRange(undefined);
-              setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1));
-            }}
+            onPrevMonth={
+              isInCurrentYear(calendarMonth) && calendarMonth.getMonth() === 0
+                ? undefined
+                : () => {
+                    setCalendarFocusRange(undefined);
+                    const next = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1);
+                    setCalendarMonth(
+                      isInCurrentYear(next) ? next : startOfMonth(new Date(currentYear(), 11, 1))
+                    );
+                  }
+            }
+            onNextMonth={
+              isInCurrentYear(calendarMonth) && calendarMonth.getMonth() === 11
+                ? undefined
+                : () => {
+                    setCalendarFocusRange(undefined);
+                    const next = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1);
+                    setCalendarMonth(
+                      isInCurrentYear(next) ? next : startOfMonth(new Date(currentYear(), 0, 1))
+                    );
+                  }
+            }
           />
         </section>
 
@@ -331,6 +359,16 @@ export default function AdminPage() {
                   type="email"
                   value={form.guestEmail}
                   onChange={(event) => setForm({ ...form, guestEmail: event.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="adminGuestPhone">Telemóvel</label>
+                <input
+                  id="adminGuestPhone"
+                  type="tel"
+                  value={form.guestPhone}
+                  onChange={(event) => setForm({ ...form, guestPhone: event.target.value })}
+                  required
                 />
               </div>
               <DateField
