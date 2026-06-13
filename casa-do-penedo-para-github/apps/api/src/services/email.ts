@@ -1,4 +1,7 @@
 import nodemailer from "nodemailer";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { Property, Reservation } from "@prisma/client";
 
 interface ReservationEmailInput {
@@ -17,6 +20,49 @@ interface EmailPayload {
   subject: string;
   text: string;
   html: string;
+  attachments?: EmailAttachment[];
+}
+
+interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType: string;
+}
+
+function resolveRegulamentoPdfPath(): string | null {
+  const customPath = process.env.REGULAMENTO_PDF_PATH?.trim();
+  if (customPath && existsSync(customPath)) {
+    return customPath;
+  }
+
+  const moduleDir = dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    join(moduleDir, "../assets/regulamento-interno.pdf"),
+    join(process.cwd(), "dist/assets/regulamento-interno.pdf"),
+    join(process.cwd(), "assets/regulamento-interno.pdf"),
+    join(process.cwd(), "apps/api/assets/regulamento-interno.pdf"),
+  ];
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+function loadRegulamentoAttachment(): EmailAttachment | null {
+  const path = resolveRegulamentoPdfPath();
+  if (!path) {
+    return null;
+  }
+
+  return {
+    filename: "Regulamento-Interno-Casa-do-Penedo.pdf",
+    content: readFileSync(path),
+    contentType: "application/pdf",
+  };
 }
 
 function formatDate(date: Date): string {
@@ -100,7 +146,10 @@ function buildEmailContent({ reservation, property }: ReservationEmailInput) {
   return { subject, text, html };
 }
 
-function buildFinalConfirmationEmailContent({ reservation, property }: ReservationEmailInput) {
+function buildFinalConfirmationEmailContent(
+  { reservation, property }: ReservationEmailInput,
+  includeRegulamentoNote = false
+) {
   const checkIn = formatDate(reservation.checkIn);
   const checkOut = formatDate(reservation.checkOut);
   const total = formatMoney(Number(reservation.totalPrice), reservation.currency);
@@ -122,6 +171,8 @@ function buildFinalConfirmationEmailContent({ reservation, property }: Reservati
     `Valor a pagar: ${total}`,
     "",
     reservation.guestPhone ? `Telemóvel: ${reservation.guestPhone}` : "",
+    "",
+    includeRegulamentoNote ? "Em anexo enviamos o regulamento interno da Casa do Penedo." : "",
     "",
     "Entraremos em contacto em breve para acertar o pagamento e os detalhes da estadia.",
     "",
@@ -148,6 +199,7 @@ function buildFinalConfirmationEmailContent({ reservation, property }: Reservati
         ${discountRow}
         <tr><td style="padding: 8px 0; color: #6b7280;">Valor a pagar</td><td style="padding: 8px 0;"><strong style="font-size: 1.1em;">${total}</strong></td></tr>
       </table>
+      ${includeRegulamentoNote ? "<p>Em anexo enviamos o <strong>regulamento interno</strong> da Casa do Penedo.</p>" : ""}
       <p>Entraremos em contacto em breve para acertar o pagamento e os detalhes da estadia.</p>
       <p style="color: #6b7280; margin-top: 32px;">Casa do Penedo</p>
     </div>
@@ -218,6 +270,11 @@ async function sendViaBrevoApi(payload: EmailPayload): Promise<EmailSendResult> 
   const sender = parseFromAddress(getFromAddress());
   const ownerEmail = process.env.OWNER_EMAIL?.trim();
   const bcc = ownerEmail && ownerEmail !== payload.to ? [{ email: ownerEmail }] : undefined;
+  const attachment =
+    payload.attachments?.map((file) => ({
+      name: file.filename,
+      content: file.content.toString("base64"),
+    })) ?? undefined;
 
   const response = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
@@ -233,6 +290,7 @@ async function sendViaBrevoApi(payload: EmailPayload): Promise<EmailSendResult> 
       subject: payload.subject,
       htmlContent: payload.html,
       textContent: payload.text,
+      ...(attachment?.length ? { attachment } : {}),
     }),
   });
 
@@ -282,6 +340,11 @@ async function sendViaSmtp(payload: EmailPayload): Promise<EmailSendResult> {
       subject: payload.subject,
       text: payload.text,
       html: payload.html,
+      attachments: payload.attachments?.map((file) => ({
+        filename: file.filename,
+        content: file.content,
+        contentType: file.contentType,
+      })),
     });
     return { sent: true };
   } catch (error) {
@@ -348,8 +411,10 @@ export async function sendReservationFinalConfirmation(input: ReservationEmailIn
   }
 
   const configError = getEmailConfigError();
+  const regulamento = loadRegulamentoAttachment();
+
   if (configError) {
-    const { subject, text } = buildFinalConfirmationEmailContent(input);
+    const { subject, text } = buildFinalConfirmationEmailContent(input, Boolean(regulamento));
     console.log("[email:preview]", configError);
     console.log(`Para: ${email}`);
     console.log(`Assunto: ${subject}`);
@@ -357,7 +422,11 @@ export async function sendReservationFinalConfirmation(input: ReservationEmailIn
     return { sent: false, reason: configError };
   }
 
-  const { subject, text, html } = buildFinalConfirmationEmailContent(input);
+  const { subject, text, html } = buildFinalConfirmationEmailContent(input, Boolean(regulamento));
+
+  if (!regulamento) {
+    console.warn("[email:attachment] Regulamento interno não encontrado — email enviado sem anexo");
+  }
 
   return sendEmail({
     to: email,
@@ -365,6 +434,7 @@ export async function sendReservationFinalConfirmation(input: ReservationEmailIn
     subject,
     text,
     html,
+    attachments: regulamento ? [regulamento] : undefined,
   });
 }
 

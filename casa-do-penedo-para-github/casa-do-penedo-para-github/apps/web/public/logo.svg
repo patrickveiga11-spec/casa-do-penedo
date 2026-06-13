@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Casa do Penedo">
-  <rect width="120" height="120" rx="24" fill="#ffffff"/>
-  <path d="M60 18 L92 42 V92 H28 V42 Z" fill="#2d6a4f"/>
-  <rect x="48" y="58" width="24" height="34" rx="3" fill="#d8ead8"/>
-  <circle cx="60" cy="36" r="8" fill="#b8d4b8"/>
-  <rect x="34" y="48" width="14" height="12" rx="2" fill="#40916c"/>
-  <rect x="72" y="48" width="14" height="12" rx="2" fill="#40916c"/>
-</svg>
