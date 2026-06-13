@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ChannelType {
+  AIRBNB
+  BOOKING
+  DIRECT
+  VRBO
+  OTHER
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+}
+
+enum SyncStatus {
+  IDLE
+  SYNCING
+  SUCCESS
+  ERROR
+}
+
+model Property {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  address     String?
+  basePrice   Decimal  @db.Decimal(10, 2)
+  currency    String   @default("EUR")
+  maxGuests   Int      @default(4)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  channels     ChannelConnection[]
+  reservations Reservation[]
+  pricingRules PricingRule[]
+  blocks       AvailabilityBlock[]
+}
+
+model ChannelConnection {
+  id           String      @id @default(cuid())
+  propertyId   String
+  type         ChannelType
+  externalId   String?
+  name         String
+  isActive     Boolean     @default(true)
+  syncStatus   SyncStatus  @default(IDLE)
+  lastSyncedAt DateTime?
+  commission   Decimal     @default(0) @db.Decimal(5, 2)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  property     Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  reservations Reservation[]
+
+  @@unique([propertyId, type])
+}
+
+model Reservation {
+  id              String            @id @default(cuid())
+  propertyId      String
+  channelId       String?
+  externalRef     String?
+  guestName       String
+  guestEmail      String?
+  guestPhone      String?
+  checkIn         DateTime          @db.Date
+  checkOut        DateTime          @db.Date
+  guests          Int               @default(1)
+  totalPrice      Decimal           @db.Decimal(10, 2)
+  discountPercent Decimal?          @db.Decimal(5, 2)
+  currency        String            @default("EUR")
+  status          ReservationStatus @default(PENDING)
+  notes           String?
+  validatedAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  property Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  channel  ChannelConnection?   @relation(fields: [channelId], references: [id], onDelete: SetNull)
+
+  @@index([propertyId, checkIn, checkOut])
+  @@index([externalRef])
+}
+
+model AvailabilityBlock {
+  id         String   @id @default(cuid())
+  propertyId String
+  startDate  DateTime @db.Date
+  endDate    DateTime @db.Date
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, startDate, endDate])
+}
+
+model PricingRule {
+  id          String   @id @default(cuid())
+  propertyId  String
+  name        String
+  priority    Int      @default(0)
+  isActive    Boolean  @default(true)
+  startDate   DateTime? @db.Date
+  endDate     DateTime? @db.Date
+  dayOfWeek   Int?
+  minNights   Int?
+  modifier    Decimal  @db.Decimal(5, 2)
+  modifierType String  @default("PERCENT")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, isActive])
+}
