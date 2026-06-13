@@ -78,6 +78,7 @@ model Reservation {
   checkOut        DateTime          @db.Date
   guests          Int               @default(1)
   totalPrice      Decimal           @db.Decimal(10, 2)
+  discountPercent Decimal?          @db.Decimal(5, 2)
   currency        String            @default("EUR")
   status          ReservationStatus @default(CONFIRMED)
   notes           String?

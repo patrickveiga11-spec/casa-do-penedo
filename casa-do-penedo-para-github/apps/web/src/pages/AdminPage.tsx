@@ -37,7 +37,9 @@ export default function AdminPage() {
     checkIn: "",
     checkOut: "",
     guests: 2,
+    discountPercent: 0,
   });
+  const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
   const [quoteTotal, setQuoteTotal] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -55,6 +57,8 @@ export default function AdminPage() {
   const sortedReservations = [...reservations].sort((a, b) =>
     dateKeyFromIso(b.checkIn).localeCompare(dateKeyFromIso(a.checkIn))
   );
+  const finalQuoteTotal =
+    quoteTotal !== null ? Math.round(quoteTotal * (1 - form.discountPercent / 100) * 100) / 100 : null;
 
   async function loadAll(selectedProperty: Property) {
     const [kpiData, calendar, reservationData, ruleData] = await Promise.all([
@@ -150,17 +154,29 @@ export default function AdminPage() {
         return;
       }
 
-      await api.createReservation({
-        propertyId: property.id,
-        guestName: form.guestName,
-        guestEmail: form.guestEmail || undefined,
-        guestPhone: form.guestPhone.trim(),
-        checkIn: form.checkIn,
-        checkOut: form.checkOut,
-        guests: form.guests,
-      });
+      await api.createReservation(
+        {
+          propertyId: property.id,
+          guestName: form.guestName,
+          guestEmail: form.guestEmail || undefined,
+          guestPhone: form.guestPhone.trim(),
+          checkIn: form.checkIn,
+          checkOut: form.checkOut,
+          guests: form.guests,
+          discountPercent: form.discountPercent > 0 ? form.discountPercent : undefined,
+        },
+        true
+      );
 
-      setForm({ guestName: "", guestEmail: "", guestPhone: "", checkIn: "", checkOut: "", guests: 2 });
+      setForm({
+        guestName: "",
+        guestEmail: "",
+        guestPhone: "",
+        checkIn: "",
+        checkOut: "",
+        guests: 2,
+        discountPercent: 0,
+      });
       await loadAll(property);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Erro ao criar reserva");
@@ -176,8 +192,17 @@ export default function AdminPage() {
     setDeleteError(null);
 
     try {
-      await api.deleteReservation(reservation.id);
+      const result = await api.deleteReservation(reservation.id);
       setConfirmDeleteId(null);
+      if (reservation.guestEmail) {
+        setDeleteNotice(
+          result.emailSent
+            ? `Reserva anulada. Email enviado para ${reservation.guestEmail}.`
+            : "Reserva anulada, mas o email ao cliente não foi enviado."
+        );
+      } else {
+        setDeleteNotice("Reserva anulada (sem email do cliente).");
+      }
       await loadAll(property);
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : "Não foi possível suprimir a reserva");
@@ -279,6 +304,7 @@ export default function AdminPage() {
           <div className="panel">
             <h2>Reservas activas</h2>
             <p className="muted-text panel-hint">Clica em «Suprimir» para cancelar uma reserva.</p>
+            {deleteNotice && <div className="alert success">{deleteNotice}</div>}
             {deleteError && <div className="alert">{deleteError}</div>}
             {sortedReservations.length === 0 ? (
               <p className="empty">Sem reservas.</p>
@@ -297,6 +323,9 @@ export default function AdminPage() {
                   <div className="reservation-actions">
                     <div className="reservation-price">
                       <div>{formatMoney(reservation.totalPrice, reservation.currency)}</div>
+                      {reservation.discountPercent && Number(reservation.discountPercent) > 0 && (
+                        <span className="muted-text">Desconto {reservation.discountPercent}%</span>
+                      )}
                       <span className="badge">{reservation.status}</span>
                     </div>
                     {confirmDeleteId === reservation.id ? (
@@ -396,11 +425,36 @@ export default function AdminPage() {
                   onChange={(event) => setForm({ ...form, guests: Number(event.target.value) })}
                 />
               </div>
+              <div className="field">
+                <label htmlFor="discountPercent">Desconto (%)</label>
+                <input
+                  id="discountPercent"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={form.discountPercent}
+                  onChange={(event) =>
+                    setForm({ ...form, discountPercent: Number(event.target.value) || 0 })
+                  }
+                />
+              </div>
 
               {quoteTotal !== null && (
                 <div className="quote-box">
-                  Preço estimado
-                  <strong>{formatMoney(quoteTotal, property.currency)}</strong>
+                  {form.discountPercent > 0 ? (
+                    <>
+                      Preço antes do desconto
+                      <strong>{formatMoney(quoteTotal, property.currency)}</strong>
+                      Total com {form.discountPercent}% de desconto
+                      <strong>{formatMoney(finalQuoteTotal ?? quoteTotal, property.currency)}</strong>
+                    </>
+                  ) : (
+                    <>
+                      Preço estimado
+                      <strong>{formatMoney(quoteTotal, property.currency)}</strong>
+                    </>
+                  )}
                 </div>
               )}
 

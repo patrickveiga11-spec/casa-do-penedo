@@ -1,8 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../lib/prisma.js";
 import { assertAvailable, findAvailabilityConflicts } from "../services/availability.js";
-import { calculateDynamicPrice } from "../services/pricing.js";
-import { sendReservationConfirmation } from "../services/email.js";
+import { calculateDynamicPrice, applyReservationDiscount } from "../services/pricing.js";
+import { sendReservationCancellation, sendReservationConfirmation } from "../services/email.js";
 import { createBlockSchema, createPricingRuleSchema, createReservationSchema, quoteSchema } from "../schemas.js";
 import { formatDate, monthBounds, nightsInRange, toDateOnly } from "../lib/dates.js";
 import { requireAdmin, verifyAdminToken } from "../lib/admin-auth.js";
@@ -106,6 +106,19 @@ export async function reservationRoutes(app: FastifyInstance) {
       body.guests
     );
 
+    const isAdmin = verifyAdminToken(request.headers.authorization);
+    let discountPercent = 0;
+
+    if (body.discountPercent && body.discountPercent > 0) {
+      if (!isAdmin) {
+        return reply.status(403).send({ error: "Desconto só disponível na gestão" });
+      }
+
+      discountPercent = body.discountPercent;
+    }
+
+    const totalPrice = applyReservationDiscount(pricing.subtotal, discountPercent);
+
     const reservation = await prisma.reservation.create({
       data: {
         propertyId: body.propertyId,
@@ -116,7 +129,8 @@ export async function reservationRoutes(app: FastifyInstance) {
         checkIn,
         checkOut,
         guests: body.guests,
-        totalPrice: pricing.subtotal,
+        totalPrice,
+        discountPercent: discountPercent > 0 ? discountPercent : null,
         currency: property.currency,
         notes: body.notes,
         status: "CONFIRMED",
@@ -143,15 +157,34 @@ export async function reservationRoutes(app: FastifyInstance) {
   app.delete("/reservations/:id", { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string };
 
-    const existing = await prisma.reservation.findUnique({ where: { id } });
+    const existing = await prisma.reservation.findUnique({
+      where: { id },
+      include: { property: true },
+    });
 
     if (!existing) {
       return reply.status(404).send({ error: "Reserva não encontrada" });
     }
 
+    let emailSent = false;
+    let emailError: string | undefined;
+
+    if (existing.guestEmail) {
+      const emailResult = await sendReservationCancellation({
+        reservation: existing,
+        property: existing.property,
+      });
+      emailSent = emailResult.sent;
+      emailError = emailResult.reason;
+
+      if (!emailSent && emailResult.reason) {
+        request.log.warn({ reason: emailResult.reason }, "Email de anulação não enviado");
+      }
+    }
+
     await prisma.reservation.delete({ where: { id } });
 
-    return reply.send({ success: true });
+    return reply.send({ success: true, emailSent, emailError });
   });
 
   app.post("/reservations/check-availability", async (request) => {

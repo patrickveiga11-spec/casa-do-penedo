@@ -10,6 +10,7 @@ export const createReservationSchema = z.object({
   checkOut: z.string(),
   guests: z.number().int().min(1).max(10).default(1),
   notes: z.string().optional(),
+  discountPercent: z.number().min(0).max(100).optional(),
 });
 
 export const createPricingRuleSchema = z.object({

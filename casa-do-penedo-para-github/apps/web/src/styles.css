@@ -376,6 +376,11 @@ button {
   font-size: 0.875rem;
 }
 
+.alert.success {
+  background: #ecfdf3;
+  color: #166534;
+}
+
 .quote-box {
   padding: 12px;
   border-radius: 12px;

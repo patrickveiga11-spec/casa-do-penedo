@@ -75,10 +75,13 @@ export const api = {
     request<Reservation[]>(`/reservations?propertyId=${propertyId}`, { admin: true }),
   getPricingRules: (propertyId: string) =>
     request<PricingRule[]>(`/pricing-rules?propertyId=${propertyId}`),
-  createReservation: (data: CreateReservationInput) =>
-    request<Reservation>("/reservations", { method: "POST", body: JSON.stringify(data) }),
+  createReservation: (data: CreateReservationInput, admin = false) =>
+    request<Reservation>("/reservations", { method: "POST", body: JSON.stringify(data), admin }),
   deleteReservation: (id: string) =>
-    request<void>(`/reservations/${id}`, { method: "DELETE", admin: true }),
+    request<{ success: boolean; emailSent?: boolean; emailError?: string }>(`/reservations/${id}`, {
+      method: "DELETE",
+      admin: true,
+    }),
   checkAvailability: (data: QuoteInput) =>
     request<AvailabilityResult>("/reservations/check-availability", {
       method: "POST",
@@ -113,6 +116,7 @@ export interface Reservation {
   checkOut: string;
   guests: number;
   totalPrice: string;
+  discountPercent?: string | null;
   currency: string;
   status: string;
   emailSent?: boolean;
@@ -173,6 +177,7 @@ export interface CreateReservationInput {
   checkIn: string;
   checkOut: string;
   guests: number;
+  discountPercent?: number;
 }
 
 export interface QuoteInput {

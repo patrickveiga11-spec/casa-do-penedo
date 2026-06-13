@@ -96,3 +96,11 @@ export function calculateDynamicPrice(
     guests,
   };
 }
+
+export function applyReservationDiscount(subtotal: number, discountPercent = 0): number {
+  if (discountPercent <= 0) {
+    return subtotal;
+  }
+
+  return Math.round(subtotal * (1 - discountPercent / 100) * 100) / 100;
+}

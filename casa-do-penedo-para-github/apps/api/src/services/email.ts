@@ -45,6 +45,9 @@ function buildEmailContent({ reservation, property }: ReservationEmailInput) {
   const checkIn = formatDate(reservation.checkIn);
   const checkOut = formatDate(reservation.checkOut);
   const total = formatMoney(Number(reservation.totalPrice), reservation.currency);
+  const discountPercent = reservation.discountPercent ? Number(reservation.discountPercent) : 0;
+  const discountLine =
+    discountPercent > 0 ? `Desconto aplicado: ${discountPercent}%` : "";
 
   const subject = `Confirmação de reserva — ${property.name}`;
 
@@ -56,6 +59,7 @@ function buildEmailContent({ reservation, property }: ReservationEmailInput) {
     `Check-in: ${checkIn}`,
     `Check-out: ${checkOut}`,
     `Hóspedes: ${reservation.guests}`,
+    discountLine,
     `Total estimado: ${total}`,
     "",
     reservation.guestPhone ? `Telemóvel: ${reservation.guestPhone}` : "",
@@ -68,6 +72,11 @@ function buildEmailContent({ reservation, property }: ReservationEmailInput) {
     .filter(Boolean)
     .join("\n");
 
+  const discountRow =
+    discountPercent > 0
+      ? `<tr><td style="padding: 8px 0; color: #6b7280;">Desconto</td><td style="padding: 8px 0;"><strong>${discountPercent}%</strong></td></tr>`
+      : "";
+
   const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2933; max-width: 560px;">
       <h2 style="color: #2d6a4f;">Confirmação de reserva</h2>
@@ -77,9 +86,48 @@ function buildEmailContent({ reservation, property }: ReservationEmailInput) {
         <tr><td style="padding: 8px 0; color: #6b7280;">Check-in</td><td style="padding: 8px 0;"><strong>${checkIn}</strong></td></tr>
         <tr><td style="padding: 8px 0; color: #6b7280;">Check-out</td><td style="padding: 8px 0;"><strong>${checkOut}</strong></td></tr>
         <tr><td style="padding: 8px 0; color: #6b7280;">Hóspedes</td><td style="padding: 8px 0;"><strong>${reservation.guests}</strong></td></tr>
+        ${discountRow}
         <tr><td style="padding: 8px 0; color: #6b7280;">Total estimado</td><td style="padding: 8px 0;"><strong>${total}</strong></td></tr>
       </table>
       <p>Entraremos em contacto em breve para confirmar pagamento e detalhes da estadia.</p>
+      <p style="color: #6b7280; margin-top: 32px;">Casa do Penedo</p>
+    </div>
+  `;
+
+  return { subject, text, html };
+}
+
+function buildCancellationEmailContent({ reservation, property }: ReservationEmailInput) {
+  const checkIn = formatDate(reservation.checkIn);
+  const checkOut = formatDate(reservation.checkOut);
+
+  const subject = `Reserva anulada — ${property.name}`;
+
+  const text = [
+    `Olá ${reservation.guestName},`,
+    "",
+    "Informamos que a tua reserva na Casa do Penedo foi anulada.",
+    "",
+    `Check-in: ${checkIn}`,
+    `Check-out: ${checkOut}`,
+    `Hóspedes: ${reservation.guests}`,
+    "",
+    "Se tiveres dúvidas ou quiseres fazer uma nova reserva, responde a este email.",
+    "",
+    "Casa do Penedo",
+  ].join("\n");
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2933; max-width: 560px;">
+      <h2 style="color: #b42318;">Reserva anulada</h2>
+      <p>Olá <strong>${reservation.guestName}</strong>,</p>
+      <p>Informamos que a tua reserva na <strong>${property.name}</strong> foi anulada.</p>
+      <table style="width: 100%; border-collapse: collapse; margin: 24px 0;">
+        <tr><td style="padding: 8px 0; color: #6b7280;">Check-in</td><td style="padding: 8px 0;"><strong>${checkIn}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #6b7280;">Check-out</td><td style="padding: 8px 0;"><strong>${checkOut}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #6b7280;">Hóspedes</td><td style="padding: 8px 0;"><strong>${reservation.guests}</strong></td></tr>
+      </table>
+      <p>Se tiveres dúvidas ou quiseres fazer uma nova reserva, responde a este email.</p>
       <p style="color: #6b7280; margin-top: 32px;">Casa do Penedo</p>
     </div>
   `;
@@ -223,6 +271,34 @@ export async function sendReservationConfirmation(input: ReservationEmailInput):
   }
 
   const { subject, text, html } = buildEmailContent(input);
+
+  return sendEmail({
+    to: email,
+    toName: input.reservation.guestName,
+    subject,
+    text,
+    html,
+  });
+}
+
+export async function sendReservationCancellation(input: ReservationEmailInput): Promise<EmailSendResult> {
+  const email = input.reservation.guestEmail;
+
+  if (!email) {
+    return { sent: false, reason: "Reserva sem email do hóspede" };
+  }
+
+  const configError = getEmailConfigError();
+  if (configError) {
+    const { subject, text } = buildCancellationEmailContent(input);
+    console.log("[email:preview]", configError);
+    console.log(`Para: ${email}`);
+    console.log(`Assunto: ${subject}`);
+    console.log(text);
+    return { sent: false, reason: configError };
+  }
+
+  const { subject, text, html } = buildCancellationEmailContent(input);
 
   return sendEmail({
     to: email,
