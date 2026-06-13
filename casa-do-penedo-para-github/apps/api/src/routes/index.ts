@@ -216,13 +216,30 @@ export async function reservationRoutes(app: FastifyInstance) {
       existing.guests
     );
 
-    const totalPrice = applyReservationDiscount(pricing.subtotal, body.discountPercent);
+    let totalPrice: number;
+    let discountPercent: number | null = null;
+
+    if (body.totalPrice !== undefined) {
+      totalPrice = Math.round(body.totalPrice * 100) / 100;
+
+      if (body.discountPercent !== undefined && body.discountPercent > 0) {
+        const fromDiscount = applyReservationDiscount(pricing.subtotal, body.discountPercent);
+        if (Math.abs(fromDiscount - totalPrice) < 0.01) {
+          discountPercent = body.discountPercent;
+        }
+      }
+    } else if (body.discountPercent !== undefined) {
+      totalPrice = applyReservationDiscount(pricing.subtotal, body.discountPercent);
+      discountPercent = body.discountPercent > 0 ? body.discountPercent : null;
+    } else {
+      return reply.status(400).send({ error: "Indica desconto ou valor final" });
+    }
 
     const reservation = await prisma.reservation.update({
       where: { id },
       data: {
         totalPrice,
-        discountPercent: body.discountPercent > 0 ? body.discountPercent : null,
+        discountPercent: discountPercent,
       },
       include: { property: true },
     });

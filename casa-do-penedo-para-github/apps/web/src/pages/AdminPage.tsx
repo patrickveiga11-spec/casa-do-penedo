@@ -42,6 +42,7 @@ export default function AdminPage() {
   const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
   const [selectedReservationId, setSelectedReservationId] = useState<string | null>(null);
   const [editDiscount, setEditDiscount] = useState(0);
+  const [editFinalPrice, setEditFinalPrice] = useState<number | null>(null);
   const [detailSubtotal, setDetailSubtotal] = useState<number | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -155,6 +156,7 @@ export default function AdminPage() {
     setDetailError(null);
     setDetailNotice(null);
     setEditDiscount(Number(reservation.discountPercent ?? 0));
+    setEditFinalPrice(Number(reservation.totalPrice));
     setDetailSubtotal(null);
     setDetailLoading(true);
 
@@ -173,19 +175,22 @@ export default function AdminPage() {
     }
   }
 
-  async function handleSaveDiscount(reservation: Reservation) {
-    if (!property) return;
+  async function handleSavePrice(reservation: Reservation) {
+    if (!property || editFinalPrice === null) return;
 
     setSavingDiscountId(reservation.id);
     setDetailError(null);
     setDetailNotice(null);
 
     try {
-      await api.updateReservationDiscount(reservation.id, editDiscount);
-      setDetailNotice("Desconto guardado.");
+      await api.updateReservationPricing(reservation.id, {
+        totalPrice: editFinalPrice,
+        ...(editDiscount > 0 ? { discountPercent: editDiscount } : {}),
+      });
+      setDetailNotice("Preço guardado.");
       await loadAll(property);
     } catch (err) {
-      setDetailError(err instanceof Error ? err.message : "Erro ao guardar desconto");
+      setDetailError(err instanceof Error ? err.message : "Erro ao guardar preço");
     } finally {
       setSavingDiscountId(null);
     }
@@ -482,7 +487,7 @@ export default function AdminPage() {
                           <strong>{reservation.guests}</strong>
                         </div>
                         <div>
-                          <span className="muted-text">Total actual</span>
+                          <span className="muted-text">Valor final</span>
                           <strong>{formatMoney(reservation.totalPrice, reservation.currency)}</strong>
                         </div>
                         <div>
@@ -500,20 +505,51 @@ export default function AdminPage() {
                           max={100}
                           step={1}
                           value={editDiscount}
+                          onChange={(event) => {
+                            const discount = Number(event.target.value) || 0;
+                            setEditDiscount(discount);
+                            if (detailSubtotal !== null) {
+                              setEditFinalPrice(
+                                Math.round(detailSubtotal * (1 - discount / 100) * 100) / 100
+                              );
+                            }
+                          }}
+                        />
+                      </div>
+
+                      <div className="field">
+                        <label htmlFor={`final-price-${reservation.id}`}>Valor final acordado (€)</label>
+                        <input
+                          id={`final-price-${reservation.id}`}
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={editFinalPrice ?? ""}
                           onChange={(event) =>
-                            setEditDiscount(Number(event.target.value) || 0)
+                            setEditFinalPrice(
+                              event.target.value === "" ? null : Number(event.target.value)
+                            )
                           }
                         />
+                        <p className="muted-text">
+                          Podes usar o desconto acima ou indicar directamente o valor acordado com o cliente.
+                        </p>
                       </div>
 
                       {detailLoading ? (
                         <p className="muted-text">A calcular preço…</p>
                       ) : detailSubtotal !== null ? (
                         <div className="quote-box">
-                          Preço antes do desconto
+                          Valor calculado pela plataforma
                           <strong>{formatMoney(detailSubtotal, reservation.currency)}</strong>
-                          Total com {editDiscount}% de desconto
-                          <strong>{formatMoney(detailFinalTotal ?? detailSubtotal, reservation.currency)}</strong>
+                          {editDiscount > 0 && (
+                            <>
+                              Total com {editDiscount}% de desconto
+                              <strong>
+                                {formatMoney(detailFinalTotal ?? detailSubtotal, reservation.currency)}
+                              </strong>
+                            </>
+                          )}
                         </div>
                       ) : null}
 
@@ -521,10 +557,14 @@ export default function AdminPage() {
                         <button
                           type="button"
                           className="btn secondary"
-                          disabled={savingDiscountId === reservation.id || detailLoading}
-                          onClick={() => handleSaveDiscount(reservation)}
+                          disabled={
+                            savingDiscountId === reservation.id ||
+                            detailLoading ||
+                            editFinalPrice === null
+                          }
+                          onClick={() => handleSavePrice(reservation)}
                         >
-                          {savingDiscountId === reservation.id ? "A guardar…" : "Guardar desconto"}
+                          {savingDiscountId === reservation.id ? "A guardar…" : "Guardar preço"}
                         </button>
                         {!reservation.validatedAt && (
                           <button
