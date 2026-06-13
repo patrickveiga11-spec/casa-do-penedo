@@ -47,6 +47,7 @@ export default function AdminPage() {
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detailNotice, setDetailNotice] = useState<string | null>(null);
   const [savingDiscountId, setSavingDiscountId] = useState<string | null>(null);
+  const [validatingId, setValidatingId] = useState<string | null>(null);
   const [quoteTotal, setQuoteTotal] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -187,6 +188,24 @@ export default function AdminPage() {
       setDetailError(err instanceof Error ? err.message : "Erro ao guardar desconto");
     } finally {
       setSavingDiscountId(null);
+    }
+  }
+
+  async function handleValidateReservation(reservation: Reservation) {
+    if (!property) return;
+
+    setValidatingId(reservation.id);
+    setDetailError(null);
+    setDetailNotice(null);
+
+    try {
+      await api.validateReservation(reservation.id);
+      setDetailNotice(`Reserva validada. Email enviado para ${reservation.guestEmail}.`);
+      await loadAll(property);
+    } catch (err) {
+      setDetailError(err instanceof Error ? err.message : "Erro ao validar reserva");
+    } finally {
+      setValidatingId(null);
     }
   }
 
@@ -363,7 +382,7 @@ export default function AdminPage() {
           <div className="panel">
             <h2>Reservas activas</h2>
             <p className="muted-text panel-hint">
-              Clica em «Detalhes» para ver contactos e aplicar desconto. «Suprimir» cancela a reserva.
+              «Detalhes» → ver contactos, desconto e validar. «Validar» envia email final ao cliente.
             </p>
             {deleteNotice && <div className="alert success">{deleteNotice}</div>}
             {deleteError && <div className="alert">{deleteError}</div>}
@@ -388,7 +407,9 @@ export default function AdminPage() {
                         {reservation.discountPercent && Number(reservation.discountPercent) > 0 && (
                           <span className="muted-text">Desconto {reservation.discountPercent}%</span>
                         )}
-                        <span className="badge">{reservation.status}</span>
+                        <span className={`badge ${reservation.validatedAt ? "badge-ok" : "badge-pending"}`}>
+                          {reservation.validatedAt ? "Validada" : "Pendente"}
+                        </span>
                       </div>
                       <button
                         type="button"
@@ -464,6 +485,10 @@ export default function AdminPage() {
                           <span className="muted-text">Total actual</span>
                           <strong>{formatMoney(reservation.totalPrice, reservation.currency)}</strong>
                         </div>
+                        <div>
+                          <span className="muted-text">Estado</span>
+                          <strong>{reservation.validatedAt ? "Validada" : "Pendente de validação"}</strong>
+                        </div>
                       </div>
 
                       <div className="field">
@@ -492,14 +517,33 @@ export default function AdminPage() {
                         </div>
                       ) : null}
 
-                      <button
-                        type="button"
-                        className="btn"
-                        disabled={savingDiscountId === reservation.id || detailLoading}
-                        onClick={() => handleSaveDiscount(reservation)}
-                      >
-                        {savingDiscountId === reservation.id ? "A guardar…" : "Guardar desconto"}
-                      </button>
+                      <div className="detail-actions">
+                        <button
+                          type="button"
+                          className="btn secondary"
+                          disabled={savingDiscountId === reservation.id || detailLoading}
+                          onClick={() => handleSaveDiscount(reservation)}
+                        >
+                          {savingDiscountId === reservation.id ? "A guardar…" : "Guardar desconto"}
+                        </button>
+                        {!reservation.validatedAt && (
+                          <button
+                            type="button"
+                            className="btn"
+                            disabled={
+                              validatingId === reservation.id ||
+                              !reservation.guestEmail ||
+                              savingDiscountId === reservation.id
+                            }
+                            onClick={() => handleValidateReservation(reservation)}
+                          >
+                            {validatingId === reservation.id ? "A validar…" : "Validar reserva"}
+                          </button>
+                        )}
+                      </div>
+                      {!reservation.guestEmail && !reservation.validatedAt && (
+                        <p className="muted-text">Sem email — não é possível validar.</p>
+                      )}
                     </div>
                   )}
                 </div>

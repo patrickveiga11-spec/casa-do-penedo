@@ -49,12 +49,13 @@ function buildEmailContent({ reservation, property }: ReservationEmailInput) {
   const discountLine =
     discountPercent > 0 ? `Desconto aplicado: ${discountPercent}%` : "";
 
-  const subject = `Confirmação de reserva — ${property.name}`;
+  const subject = `Reserva provisória — ${property.name}`;
 
   const text = [
     `Olá ${reservation.guestName},`,
     "",
-    "A tua reserva na Casa do Penedo foi registada com sucesso.",
+    "Recebemos o teu pedido de reserva na Casa do Penedo.",
+    "Esta é uma reserva provisória — ainda não está confirmada.",
     "",
     `Check-in: ${checkIn}`,
     `Check-out: ${checkOut}`,
@@ -64,7 +65,7 @@ function buildEmailContent({ reservation, property }: ReservationEmailInput) {
     "",
     reservation.guestPhone ? `Telemóvel: ${reservation.guestPhone}` : "",
     "",
-    "Entraremos em contacto em breve para confirmar pagamento e detalhes da estadia.",
+    "Enviaremos um email de confirmação final com o valor a pagar assim que validarmos a reserva.",
     "",
     "Obrigado,",
     "Casa do Penedo",
@@ -79,9 +80,12 @@ function buildEmailContent({ reservation, property }: ReservationEmailInput) {
 
   const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2933; max-width: 560px;">
-      <h2 style="color: #2d6a4f;">Confirmação de reserva</h2>
+      <h2 style="color: #b45309;">Reserva provisória</h2>
       <p>Olá <strong>${reservation.guestName}</strong>,</p>
-      <p>A tua reserva na <strong>${property.name}</strong> foi registada com sucesso.</p>
+      <p>Recebemos o teu pedido de reserva na <strong>${property.name}</strong>.</p>
+      <p style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 16px 0;">
+        <strong>Esta é uma reserva provisória</strong> — ainda não está confirmada. Enviaremos a confirmação final com o valor a pagar assim que validarmos o pedido.
+      </p>
       <table style="width: 100%; border-collapse: collapse; margin: 24px 0;">
         <tr><td style="padding: 8px 0; color: #6b7280;">Check-in</td><td style="padding: 8px 0;"><strong>${checkIn}</strong></td></tr>
         <tr><td style="padding: 8px 0; color: #6b7280;">Check-out</td><td style="padding: 8px 0;"><strong>${checkOut}</strong></td></tr>
@@ -89,7 +93,62 @@ function buildEmailContent({ reservation, property }: ReservationEmailInput) {
         ${discountRow}
         <tr><td style="padding: 8px 0; color: #6b7280;">Total estimado</td><td style="padding: 8px 0;"><strong>${total}</strong></td></tr>
       </table>
-      <p>Entraremos em contacto em breve para confirmar pagamento e detalhes da estadia.</p>
+      <p style="color: #6b7280; margin-top: 32px;">Casa do Penedo</p>
+    </div>
+  `;
+
+  return { subject, text, html };
+}
+
+function buildFinalConfirmationEmailContent({ reservation, property }: ReservationEmailInput) {
+  const checkIn = formatDate(reservation.checkIn);
+  const checkOut = formatDate(reservation.checkOut);
+  const total = formatMoney(Number(reservation.totalPrice), reservation.currency);
+  const discountPercent = reservation.discountPercent ? Number(reservation.discountPercent) : 0;
+  const discountLine =
+    discountPercent > 0 ? `Desconto aplicado: ${discountPercent}%` : "";
+
+  const subject = `Confirmação final — ${property.name}`;
+
+  const text = [
+    `Olá ${reservation.guestName},`,
+    "",
+    "A tua reserva na Casa do Penedo está confirmada.",
+    "",
+    `Check-in: ${checkIn}`,
+    `Check-out: ${checkOut}`,
+    `Hóspedes: ${reservation.guests}`,
+    discountLine,
+    `Valor a pagar: ${total}`,
+    "",
+    reservation.guestPhone ? `Telemóvel: ${reservation.guestPhone}` : "",
+    "",
+    "Entraremos em contacto em breve para acertar o pagamento e os detalhes da estadia.",
+    "",
+    "Obrigado,",
+    "Casa do Penedo",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const discountRow =
+    discountPercent > 0
+      ? `<tr><td style="padding: 8px 0; color: #6b7280;">Desconto</td><td style="padding: 8px 0;"><strong>${discountPercent}%</strong></td></tr>`
+      : "";
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2933; max-width: 560px;">
+      <h2 style="color: #2d6a4f;">Confirmação final da reserva</h2>
+      <p>Olá <strong>${reservation.guestName}</strong>,</p>
+      <p>A tua reserva na <strong>${property.name}</strong> está confirmada.</p>
+      <table style="width: 100%; border-collapse: collapse; margin: 24px 0;">
+        <tr><td style="padding: 8px 0; color: #6b7280;">Check-in</td><td style="padding: 8px 0;"><strong>${checkIn}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #6b7280;">Check-out</td><td style="padding: 8px 0;"><strong>${checkOut}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #6b7280;">Hóspedes</td><td style="padding: 8px 0;"><strong>${reservation.guests}</strong></td></tr>
+        ${discountRow}
+        <tr><td style="padding: 8px 0; color: #6b7280;">Valor a pagar</td><td style="padding: 8px 0;"><strong style="font-size: 1.1em;">${total}</strong></td></tr>
+      </table>
+      <p>Entraremos em contacto em breve para acertar o pagamento e os detalhes da estadia.</p>
       <p style="color: #6b7280; margin-top: 32px;">Casa do Penedo</p>
     </div>
   `;
@@ -271,6 +330,34 @@ export async function sendReservationConfirmation(input: ReservationEmailInput):
   }
 
   const { subject, text, html } = buildEmailContent(input);
+
+  return sendEmail({
+    to: email,
+    toName: input.reservation.guestName,
+    subject,
+    text,
+    html,
+  });
+}
+
+export async function sendReservationFinalConfirmation(input: ReservationEmailInput): Promise<EmailSendResult> {
+  const email = input.reservation.guestEmail;
+
+  if (!email) {
+    return { sent: false, reason: "Reserva sem email do hóspede" };
+  }
+
+  const configError = getEmailConfigError();
+  if (configError) {
+    const { subject, text } = buildFinalConfirmationEmailContent(input);
+    console.log("[email:preview]", configError);
+    console.log(`Para: ${email}`);
+    console.log(`Assunto: ${subject}`);
+    console.log(text);
+    return { sent: false, reason: configError };
+  }
+
+  const { subject, text, html } = buildFinalConfirmationEmailContent(input);
 
   return sendEmail({
     to: email,

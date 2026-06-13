@@ -2,7 +2,11 @@ import type { FastifyInstance } from "fastify";
 import { prisma } from "../lib/prisma.js";
 import { assertAvailable, findAvailabilityConflicts } from "../services/availability.js";
 import { calculateDynamicPrice, applyReservationDiscount } from "../services/pricing.js";
-import { sendReservationCancellation, sendReservationConfirmation } from "../services/email.js";
+import {
+  sendReservationCancellation,
+  sendReservationConfirmation,
+  sendReservationFinalConfirmation,
+} from "../services/email.js";
 import { createBlockSchema, createPricingRuleSchema, createReservationSchema, quoteSchema, updateReservationSchema } from "../schemas.js";
 import { formatDate, monthBounds, nightsInRange, toDateOnly } from "../lib/dates.js";
 import { requireAdmin, verifyAdminToken } from "../lib/admin-auth.js";
@@ -133,7 +137,7 @@ export async function reservationRoutes(app: FastifyInstance) {
         discountPercent: discountPercent > 0 ? discountPercent : null,
         currency: property.currency,
         notes: body.notes,
-        status: "CONFIRMED",
+        status: "PENDING",
       },
       include: { property: true },
     });
@@ -142,13 +146,12 @@ export async function reservationRoutes(app: FastifyInstance) {
     let emailError: string | undefined;
 
     if (reservation.guestEmail) {
-      const emailResult = await sendReservationConfirmation({ reservation, property });
+      const emailResult = await sendReservationConfirmation({
+        reservation,
+        property: reservation.property,
+      });
       emailSent = emailResult.sent;
       emailError = emailResult.reason;
-
-      if (!emailSent && emailResult.reason) {
-        request.log.warn({ reason: emailResult.reason }, "Email de confirmação não enviado");
-      }
     }
 
     return reply.status(201).send({ ...reservation, emailSent, emailError });
@@ -228,6 +231,50 @@ export async function reservationRoutes(app: FastifyInstance) {
       ...reservation,
       subtotalBeforeDiscount: pricing.subtotal,
     });
+  });
+
+  app.post("/reservations/:id/validate", { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const existing = await prisma.reservation.findUnique({
+      where: { id },
+      include: { property: true },
+    });
+
+    if (!existing) {
+      return reply.status(404).send({ error: "Reserva não encontrada" });
+    }
+
+    if (existing.validatedAt) {
+      return reply.status(409).send({ error: "Reserva já validada" });
+    }
+
+    if (!existing.guestEmail) {
+      return reply.status(400).send({ error: "Reserva sem email do cliente" });
+    }
+
+    const emailResult = await sendReservationFinalConfirmation({
+      reservation: existing,
+      property: existing.property,
+    });
+
+    if (!emailResult.sent) {
+      return reply.status(502).send({
+        error: emailResult.reason ?? "Não foi possível enviar o email",
+        emailSent: false,
+      });
+    }
+
+    const reservation = await prisma.reservation.update({
+      where: { id },
+      data: {
+        validatedAt: new Date(),
+        status: "CONFIRMED",
+      },
+      include: { property: true },
+    });
+
+    return reply.send({ ...reservation, emailSent: true });
   });
 
   app.post("/reservations/check-availability", async (request) => {

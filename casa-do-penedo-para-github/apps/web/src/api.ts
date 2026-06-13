@@ -88,6 +88,8 @@ export const api = {
       admin: true,
       body: JSON.stringify({ discountPercent }),
     }),
+  validateReservation: (id: string) =>
+    request<Reservation>(`/reservations/${id}/validate`, { method: "POST", admin: true }),
   checkAvailability: (data: QuoteInput) =>
     request<AvailabilityResult>("/reservations/check-availability", {
       method: "POST",
@@ -127,6 +129,7 @@ export interface Reservation {
   currency: string;
   status: string;
   notes?: string | null;
+  validatedAt?: string | null;
   emailSent?: boolean;
   subtotalBeforeDiscount?: number;
 }

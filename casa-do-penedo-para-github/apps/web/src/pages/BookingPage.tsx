@@ -179,7 +179,7 @@ export default function BookingPage() {
         <LogoHeader subtitle="Reserva recebida com sucesso" />
         <section className="panel success-panel">
           <h2>Obrigado, {confirmation.guestName}!</h2>
-          <p>A tua reserva na Casa do Penedo foi registada.</p>
+          <p>A tua reserva provisória na Casa do Penedo foi registada.</p>
           <div className="confirmation-grid">
             <div>
               <span className="muted-text">Check-in</span>
@@ -198,13 +198,18 @@ export default function BookingPage() {
               <strong>{formatMoney(confirmation.totalPrice, confirmation.currency)}</strong>
             </div>
           </div>
+          {confirmation.emailSent ? (
+            <p className="muted-text">
+              Enviámos um email com os detalhes da reserva provisória para{" "}
+              <strong>{confirmation.guestEmail}</strong>.
+            </p>
+          ) : (
+            <p className="muted-text">
+              Não foi possível enviar o email de reserva provisória. Entraremos em contacto em breve.
+            </p>
+          )}
           <p className="muted-text">
-            {confirmation.emailSent
-              ? `Enviámos a confirmação para ${confirmation.guestEmail}.`
-              : "A reserva foi registada. Receberás confirmação por email em breve."}
-          </p>
-          <p className="muted-text">
-            Entraremos em contacto para confirmar pagamento e detalhes da estadia.
+            Receberás a confirmação final com o valor a pagar por email assim que validarmos a reserva.
           </p>
           <button type="button" className="btn" onClick={() => setConfirmation(null)}>
             Fazer nova reserva

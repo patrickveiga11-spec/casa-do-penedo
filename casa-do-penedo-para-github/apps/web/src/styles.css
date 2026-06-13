@@ -262,6 +262,23 @@ button {
   gap: 8px;
 }
 
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.badge-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge-ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
 .reservation-price {
   text-align: right;
 }

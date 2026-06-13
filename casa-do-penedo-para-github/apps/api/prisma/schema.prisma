@@ -80,8 +80,9 @@ model Reservation {
   totalPrice      Decimal           @db.Decimal(10, 2)
   discountPercent Decimal?          @db.Decimal(5, 2)
   currency        String            @default("EUR")
-  status          ReservationStatus @default(CONFIRMED)
+  status          ReservationStatus @default(PENDING)
   notes           String?
+  validatedAt     DateTime?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
