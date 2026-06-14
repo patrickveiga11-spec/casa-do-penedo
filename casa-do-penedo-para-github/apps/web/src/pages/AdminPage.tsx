@@ -393,17 +393,32 @@ export default function AdminPage() {
       )}
 
       {notificationSetup?.enabled && (
-        <section className="admin-alert admin-alert-mobile">
-          <div>
-            <strong>Alertas no telemóvel (recomendado)</strong>
+        <section className="admin-alert admin-alert-mobile admin-alert-mobile-setup">
+          <div className="admin-alert-mobile-copy">
+            <strong>Alertas no iPhone</strong>
             <p className="muted-text">
-              O Outlook costuma marcar estes emails como spam. Instale a app <strong>ntfy</strong> e subscreva
-              para receber aviso imediato no telemóvel.
+              Se activar no <strong>Mac</strong>, a notificação fica no Mac — <strong>não passa para o iPhone</strong>.
+              Faça isto no telemóvel:
+            </p>
+            <ol className="admin-alert-steps">
+              <li>Instale a app <strong>ntfy</strong> no iPhone (App Store)</li>
+              <li>No iPhone, abra a câmara e <strong>leia o QR code</strong> ao lado</li>
+              <li>Toque em <strong>Abrir em ntfy</strong> → <strong>Subscribe</strong> → <strong>Permitir</strong></li>
+            </ol>
+            <p className="muted-text admin-alert-link-label">
+              Sem QR: no iPhone abra{" "}
+              <a href={notificationSetup.subscribeUrl}>{notificationSetup.subscribeUrl}</a>
             </p>
           </div>
-          <a className="button-secondary" href={notificationSetup.subscribeUrl} target="_blank" rel="noreferrer">
-            Activar alertas
-          </a>
+          <div className="admin-alert-mobile-qr">
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(notificationSetup.subscribeUrl)}`}
+              alt="QR code para activar alertas no iPhone"
+              width={180}
+              height={180}
+            />
+            <span className="muted-text">Ler com o iPhone</span>
+          </div>
         </section>
       )}
 

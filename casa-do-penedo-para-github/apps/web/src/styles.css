@@ -512,6 +512,47 @@ button {
   color: #1e3a8a;
 }
 
+.admin-alert-mobile-setup {
+  align-items: flex-start;
+}
+
+.admin-alert-mobile-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-alert-steps {
+  margin: 12px 0;
+  padding-left: 20px;
+}
+
+.admin-alert-steps li {
+  margin-bottom: 6px;
+}
+
+.admin-alert-mobile-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.admin-alert-mobile-qr img {
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px;
+}
+
+.admin-alert-link-label {
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+.admin-alert-link-label a {
+  color: inherit;
+}
+
 .button-secondary {
   display: inline-flex;
   align-items: center;
