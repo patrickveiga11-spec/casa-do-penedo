@@ -312,7 +312,15 @@ export async function reservationRoutes(app: FastifyInstance) {
       blocks,
     });
 
-    return { available: conflicts.length === 0, conflicts };
+    const isAdmin = verifyAdminToken(request.headers.authorization);
+    const visibleConflicts = isAdmin
+      ? conflicts
+      : conflicts.map((conflict) => ({
+          ...conflict,
+          label: conflict.type === "reservation" ? "Ocupado" : conflict.label,
+        }));
+
+    return { available: visibleConflicts.length === 0, conflicts: visibleConflicts };
   });
 }
 
@@ -352,14 +360,20 @@ export async function calendarRoutes(app: FastifyInstance) {
   });
 }
 
-function anonymizeReservation<T extends { guestName: string; guestEmail: string | null; guestPhone: string | null }>(
-  reservation: T
-) {
+function anonymizeReservation<
+  T extends {
+    guestName: string;
+    guestEmail: string | null;
+    guestPhone: string | null;
+    notes?: string | null;
+  },
+>(reservation: T) {
   return {
     ...reservation,
     guestName: "Ocupado",
     guestEmail: null,
     guestPhone: null,
+    notes: null,
   };
 }
 
