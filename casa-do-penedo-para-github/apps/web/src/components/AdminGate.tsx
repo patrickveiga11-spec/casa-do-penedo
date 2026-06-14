@@ -44,15 +44,15 @@ export function AdminGate({ children }: AdminGateProps) {
   }
 
   if (checkingSession) {
-    return <div className="app-shell">A verificar acesso…</div>;
+    return <div className="theme-admin app-shell">A verificar acesso…</div>;
   }
 
   if (authenticated) {
-    return <>{children}</>;
+    return <div className="theme-admin">{children}</div>;
   }
 
   return (
-    <div className="app-shell">
+    <div className="theme-admin app-shell">
       <LogoHeader subtitle="Área de gestão — acesso reservado ao proprietário" />
       <section className="panel admin-login">
         <h2>Entrar na gestão</h2>
