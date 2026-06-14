@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   api,
   type Kpis,
+  type NotificationSetup,
   type PricingRule,
   type Property,
   type Reservation,
@@ -59,6 +60,9 @@ export default function AdminPage() {
   const [calendarFocusRange, setCalendarFocusRange] = useState<
     { checkIn: string; checkOut: string } | undefined
   >();
+  const [pendingAlert, setPendingAlert] = useState<string | null>(null);
+  const [notificationSetup, setNotificationSetup] = useState<NotificationSetup | null>(null);
+  const knownPendingIdsRef = useRef<Set<string> | null>(null);
 
   const range = monthRange(calendarMonth);
   const kpiMonth = `${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth() + 1).padStart(2, "0")}`;
@@ -66,6 +70,7 @@ export default function AdminPage() {
   const sortedReservations = [...reservations].sort((a, b) =>
     dateKeyFromIso(b.checkIn).localeCompare(dateKeyFromIso(a.checkIn))
   );
+  const pendingReservations = sortedReservations.filter((reservation) => reservation.status === "PENDING");
   const finalQuoteTotal =
     quoteTotal !== null ? Math.round(quoteTotal * (1 - form.discountPercent / 100) * 100) / 100 : null;
   const detailFinalTotal =
@@ -83,6 +88,11 @@ export default function AdminPage() {
     setReservations(reservationData);
     setPricingRules(ruleData);
     setBlocks(calendar.blocks);
+
+    const pendingIds = new Set(
+      reservationData.filter((reservation) => reservation.status === "PENDING").map((reservation) => reservation.id)
+    );
+    knownPendingIdsRef.current = pendingIds;
   }
 
   useEffect(() => {
@@ -103,6 +113,40 @@ export default function AdminPage() {
 
     bootstrap();
   }, []);
+
+  useEffect(() => {
+    api.getNotificationSetup().then(setNotificationSetup).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    if (!property) return;
+
+    const interval = window.setInterval(() => {
+      api
+        .getReservations(property.id)
+        .then((reservationData) => {
+          const pending = reservationData.filter((reservation) => reservation.status === "PENDING");
+          const knownIds = knownPendingIdsRef.current ?? new Set<string>();
+          const freshPending = pending.filter((reservation) => !knownIds.has(reservation.id));
+
+          if (knownPendingIdsRef.current && freshPending.length > 0) {
+            const latest = freshPending[0];
+            const message = `Nova reserva: ${latest.guestName}`;
+            setPendingAlert(message);
+
+            if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+              new Notification("Casa do Penedo", { body: message });
+            }
+          }
+
+          knownPendingIdsRef.current = new Set(pending.map((reservation) => reservation.id));
+          setReservations(reservationData);
+        })
+        .catch(() => undefined);
+    }, 20000);
+
+    return () => window.clearInterval(interval);
+  }, [property?.id]);
 
   useEffect(() => {
     if (!property) return;
@@ -323,6 +367,46 @@ export default function AdminPage() {
 
       <LogoHeader subtitle="Painel de gestão — reservas, calendário e tarifas" />
 
+      {pendingReservations.length > 0 && (
+        <section className="admin-alert admin-alert-pending">
+          <div>
+            <strong>
+              {pendingReservations.length === 1
+                ? "1 reserva pendente de validação"
+                : `${pendingReservations.length} reservas pendentes de validação`}
+            </strong>
+            {pendingAlert && <p>{pendingAlert}</p>}
+          </div>
+          <button
+            type="button"
+            className="button-secondary"
+            onClick={() => {
+              if (typeof Notification !== "undefined" && Notification.permission === "default") {
+                Notification.requestPermission().catch(() => undefined);
+              }
+              document.getElementById("admin-reservations")?.scrollIntoView({ behavior: "smooth" });
+            }}
+          >
+            Ver pendentes
+          </button>
+        </section>
+      )}
+
+      {notificationSetup?.enabled && (
+        <section className="admin-alert admin-alert-mobile">
+          <div>
+            <strong>Alertas no telemóvel (recomendado)</strong>
+            <p className="muted-text">
+              O Outlook costuma marcar estes emails como spam. Instale a app <strong>ntfy</strong> e subscreva
+              para receber aviso imediato no telemóvel.
+            </p>
+          </div>
+          <a className="button-secondary" href={notificationSetup.subscribeUrl} target="_blank" rel="noreferrer">
+            Activar alertas
+          </a>
+        </section>
+      )}
+
       {kpis && (
         <section className="kpi-grid">
           <p className="kpi-month-label muted-text">Indicadores de {kpiMonthLabel}</p>
@@ -384,7 +468,7 @@ export default function AdminPage() {
         </section>
 
         <section className="stack">
-          <div className="panel">
+          <div className="panel" id="admin-reservations">
             <h2>Reservas activas</h2>
             <p className="muted-text panel-hint">
               «Detalhes» → ver contactos, desconto e validar. «Validar» envia email final ao cliente.

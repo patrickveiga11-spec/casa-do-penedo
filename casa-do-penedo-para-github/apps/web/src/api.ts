@@ -65,6 +65,9 @@ export const api = {
     await request("/auth/admin/session", { admin: true });
   },
 
+  getNotificationSetup: () =>
+    request<NotificationSetup>("/admin/notifications/setup", { admin: true }),
+
   getProperties: () => request<Property[]>("/properties"),
   getProperty: (id: string) => request<PropertyDetail>(`/properties/${id}`),
   getKpis: (propertyId: string, month?: string) =>
@@ -213,3 +216,12 @@ export interface CreatePricingRuleInput {
   startDate?: string;
   endDate?: string;
 }
+
+export type NotificationSetup =
+  | { enabled: false }
+  | {
+      enabled: true;
+      topic: string;
+      subscribeUrl: string;
+      appUrl: string;
+    };
