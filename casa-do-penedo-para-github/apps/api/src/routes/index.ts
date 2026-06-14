@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma.js";
 import { assertAvailable, findAvailabilityConflicts } from "../services/availability.js";
 import { calculateDynamicPrice, applyReservationDiscount } from "../services/pricing.js";
 import {
+  sendOwnerNewReservationNotification,
   sendReservationCancellation,
   sendReservationConfirmation,
   sendReservationFinalConfirmation,
@@ -152,6 +153,15 @@ export async function reservationRoutes(app: FastifyInstance) {
       });
       emailSent = emailResult.sent;
       emailError = emailResult.reason;
+    }
+
+    const ownerEmailResult = await sendOwnerNewReservationNotification({
+      reservation,
+      property: reservation.property,
+    });
+
+    if (!ownerEmailResult.sent) {
+      console.warn("[email:owner-notification]", ownerEmailResult.reason);
     }
 
     return reply.status(201).send({ ...reservation, emailSent, emailError });

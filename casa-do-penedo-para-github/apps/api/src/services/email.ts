@@ -21,6 +21,8 @@ interface EmailPayload {
   text: string;
   html: string;
   attachments?: EmailAttachment[];
+  tags?: string[];
+  includeOwnerBcc?: boolean;
 }
 
 interface EmailAttachment {
@@ -246,8 +248,73 @@ function buildCancellationEmailContent({ reservation, property }: ReservationEma
   return { subject, text, html };
 }
 
+function getReplyToAddress() {
+  const ownerEmail = process.env.OWNER_EMAIL?.trim();
+  if (!ownerEmail) {
+    return undefined;
+  }
+
+  return { name: "Casa do Penedo", email: ownerEmail };
+}
+
+function buildOwnerNewReservationEmailContent({ reservation, property }: ReservationEmailInput) {
+  const checkIn = formatDate(reservation.checkIn);
+  const checkOut = formatDate(reservation.checkOut);
+  const total = formatMoney(Number(reservation.totalPrice), reservation.currency);
+
+  const subject = `Nova reserva — ${property.name}`;
+
+  const text = [
+    "Recebeste um novo pedido de reserva na Casa do Penedo.",
+    "",
+    `Hóspede: ${reservation.guestName}`,
+    reservation.guestEmail ? `Email: ${reservation.guestEmail}` : "Email: —",
+    reservation.guestPhone ? `Telemóvel: ${reservation.guestPhone}` : "Telemóvel: —",
+    "",
+    `Check-in: ${checkIn}`,
+    `Check-out: ${checkOut}`,
+    `Hóspedes: ${reservation.guests}`,
+    `Total estimado: ${total}`,
+    "",
+    "Estado: pendente de validação na gestão.",
+    "",
+    "Casa do Penedo",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2933; max-width: 560px;">
+      <h2 style="color: #1d4ed8;">Nova reserva</h2>
+      <p>Recebeste um novo pedido de reserva na <strong>${property.name}</strong>.</p>
+      <table style="width: 100%; border-collapse: collapse; margin: 24px 0;">
+        <tr><td style="padding: 8px 0; color: #6b7280;">Hóspede</td><td style="padding: 8px 0;"><strong>${reservation.guestName}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #6b7280;">Email</td><td style="padding: 8px 0;"><strong>${reservation.guestEmail ?? "—"}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #6b7280;">Telemóvel</td><td style="padding: 8px 0;"><strong>${reservation.guestPhone ?? "—"}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #6b7280;">Check-in</td><td style="padding: 8px 0;"><strong>${checkIn}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #6b7280;">Check-out</td><td style="padding: 8px 0;"><strong>${checkOut}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #6b7280;">Hóspedes</td><td style="padding: 8px 0;"><strong>${reservation.guests}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #6b7280;">Total estimado</td><td style="padding: 8px 0;"><strong>${total}</strong></td></tr>
+      </table>
+      <p style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px;">
+        Estado: <strong>pendente de validação</strong> na gestão.
+      </p>
+    </div>
+  `;
+
+  return { subject, text, html };
+}
+
 function getFromAddress() {
   return process.env.SMTP_FROM ?? "Casa do Penedo <casa_do_penedo@outlook.com>";
+}
+
+function shouldIncludeOwnerBcc(payload: EmailPayload) {
+  if (payload.includeOwnerBcc === false) {
+    return false;
+  }
+
+  return process.env.OWNER_BCC !== "false";
 }
 
 export function getEmailConfigError(): string | null {
@@ -269,7 +336,11 @@ async function sendViaBrevoApi(payload: EmailPayload): Promise<EmailSendResult> 
 
   const sender = parseFromAddress(getFromAddress());
   const ownerEmail = process.env.OWNER_EMAIL?.trim();
-  const bcc = ownerEmail && ownerEmail !== payload.to ? [{ email: ownerEmail }] : undefined;
+  const replyTo = getReplyToAddress();
+  const bcc =
+    shouldIncludeOwnerBcc(payload) && ownerEmail && ownerEmail !== payload.to
+      ? [{ email: ownerEmail }]
+      : undefined;
   const attachment =
     payload.attachments?.map((file) => ({
       name: file.filename,
@@ -286,10 +357,12 @@ async function sendViaBrevoApi(payload: EmailPayload): Promise<EmailSendResult> 
     body: JSON.stringify({
       sender,
       to: [{ email: payload.to, name: payload.toName }],
+      replyTo,
       bcc,
       subject: payload.subject,
       htmlContent: payload.html,
       textContent: payload.text,
+      tags: payload.tags,
       ...(attachment?.length ? { attachment } : {}),
     }),
   });
@@ -329,6 +402,7 @@ async function sendViaSmtp(payload: EmailPayload): Promise<EmailSendResult> {
 
   const from = getFromAddress();
   const ownerEmail = process.env.OWNER_EMAIL?.trim();
+  const replyTo = getReplyToAddress();
   const transport = createSmtpTransport();
 
   try {
@@ -336,7 +410,11 @@ async function sendViaSmtp(payload: EmailPayload): Promise<EmailSendResult> {
     await transport.sendMail({
       from,
       to: payload.to,
-      bcc: ownerEmail && ownerEmail !== payload.to ? ownerEmail : undefined,
+      replyTo: replyTo ? { name: replyTo.name, address: replyTo.email } : undefined,
+      bcc:
+        shouldIncludeOwnerBcc(payload) && ownerEmail && ownerEmail !== payload.to
+          ? ownerEmail
+          : undefined,
       subject: payload.subject,
       text: payload.text,
       html: payload.html,
@@ -400,6 +478,39 @@ export async function sendReservationConfirmation(input: ReservationEmailInput):
     subject,
     text,
     html,
+    tags: ["reserva", "cliente"],
+    includeOwnerBcc: false,
+  });
+}
+
+export async function sendOwnerNewReservationNotification(
+  input: ReservationEmailInput
+): Promise<EmailSendResult> {
+  const ownerEmail = process.env.OWNER_EMAIL?.trim();
+
+  if (!ownerEmail) {
+    return { sent: false, reason: "OWNER_EMAIL em falta" };
+  }
+
+  const configError = getEmailConfigError();
+  const { subject, text, html } = buildOwnerNewReservationEmailContent(input);
+
+  if (configError) {
+    console.log("[email:preview]", configError);
+    console.log(`Para: ${ownerEmail}`);
+    console.log(`Assunto: ${subject}`);
+    console.log(text);
+    return { sent: false, reason: configError };
+  }
+
+  return sendEmail({
+    to: ownerEmail,
+    toName: "Casa do Penedo",
+    subject,
+    text,
+    html,
+    tags: ["reserva", "gestao"],
+    includeOwnerBcc: false,
   });
 }
 
@@ -435,6 +546,8 @@ export async function sendReservationFinalConfirmation(input: ReservationEmailIn
     text,
     html,
     attachments: regulamento ? [regulamento] : undefined,
+    tags: ["reserva", "cliente"],
+    includeOwnerBcc: false,
   });
 }
 
@@ -463,6 +576,8 @@ export async function sendReservationCancellation(input: ReservationEmailInput):
     subject,
     text,
     html,
+    tags: ["reserva", "cliente"],
+    includeOwnerBcc: false,
   });
 }
 
