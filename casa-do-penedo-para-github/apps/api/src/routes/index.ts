@@ -8,7 +8,6 @@ import {
   sendReservationConfirmation,
   sendReservationFinalConfirmation,
 } from "../services/email.js";
-import { getNtfySubscribeUrl, getNtfyTopic, sendOwnerPushNotification } from "../services/push-notifications.js";
 import { createBlockSchema, createPricingRuleSchema, createReservationSchema, quoteSchema, updateReservationSchema } from "../schemas.js";
 import { formatDate, monthBounds, nightsInRange, toDateOnly } from "../lib/dates.js";
 import { requireAdmin, verifyAdminToken } from "../lib/admin-auth.js";
@@ -163,22 +162,6 @@ export async function reservationRoutes(app: FastifyInstance) {
 
     if (!ownerEmailResult.sent) {
       console.warn("[email:owner-notification]", ownerEmailResult.reason);
-    }
-
-    const pushResult = await sendOwnerPushNotification({
-      guestName: reservation.guestName,
-      guestEmail: reservation.guestEmail,
-      guestPhone: reservation.guestPhone,
-      checkIn: reservation.checkIn,
-      checkOut: reservation.checkOut,
-      guests: reservation.guests,
-      totalPrice: Number(reservation.totalPrice),
-      currency: reservation.currency,
-      propertyName: reservation.property.name,
-    });
-
-    if (!pushResult.sent) {
-      console.warn("[push:owner-notification]", pushResult.reason);
     }
 
     return reply.status(201).send({ ...reservation, emailSent, emailError });
@@ -478,21 +461,6 @@ export async function blockRoutes(app: FastifyInstance) {
 }
 
 export async function dashboardRoutes(app: FastifyInstance) {
-  app.get("/admin/notifications/setup", { preHandler: requireAdmin }, async () => {
-    const topic = getNtfyTopic();
-
-    if (!topic) {
-      return { enabled: false as const };
-    }
-
-    return {
-      enabled: true as const,
-      topic,
-      subscribeUrl: getNtfySubscribeUrl(topic),
-      appUrl: `ntfy://subscribe/${topic}`,
-    };
-  });
-
   app.get("/dashboard/kpis", { preHandler: requireAdmin }, async (request) => {
     const { propertyId, month } = request.query as { propertyId?: string; month?: string };
 

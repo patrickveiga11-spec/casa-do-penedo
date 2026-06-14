@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import {
   api,
   type Kpis,
-  type NotificationSetup,
   type PricingRule,
   type Property,
   type Reservation,
@@ -61,7 +60,6 @@ export default function AdminPage() {
     { checkIn: string; checkOut: string } | undefined
   >();
   const [pendingAlert, setPendingAlert] = useState<string | null>(null);
-  const [notificationSetup, setNotificationSetup] = useState<NotificationSetup | null>(null);
   const knownPendingIdsRef = useRef<Set<string> | null>(null);
 
   const range = monthRange(calendarMonth);
@@ -115,10 +113,6 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    api.getNotificationSetup().then(setNotificationSetup).catch(() => undefined);
-  }, []);
-
-  useEffect(() => {
     if (!property) return;
 
     const interval = window.setInterval(() => {
@@ -130,13 +124,7 @@ export default function AdminPage() {
           const freshPending = pending.filter((reservation) => !knownIds.has(reservation.id));
 
           if (knownPendingIdsRef.current && freshPending.length > 0) {
-            const latest = freshPending[0];
-            const message = `Nova reserva: ${latest.guestName}`;
-            setPendingAlert(message);
-
-            if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-              new Notification("Casa do Penedo", { body: message });
-            }
+            setPendingAlert(`Nova reserva: ${freshPending[0].guestName}`);
           }
 
           knownPendingIdsRef.current = new Set(pending.map((reservation) => reservation.id));
@@ -381,44 +369,11 @@ export default function AdminPage() {
             type="button"
             className="button-secondary"
             onClick={() => {
-              if (typeof Notification !== "undefined" && Notification.permission === "default") {
-                Notification.requestPermission().catch(() => undefined);
-              }
               document.getElementById("admin-reservations")?.scrollIntoView({ behavior: "smooth" });
             }}
           >
             Ver pendentes
           </button>
-        </section>
-      )}
-
-      {notificationSetup?.enabled && (
-        <section className="admin-alert admin-alert-mobile admin-alert-mobile-setup">
-          <div className="admin-alert-mobile-copy">
-            <strong>Alertas no iPhone</strong>
-            <p className="muted-text">
-              Se activar no <strong>Mac</strong>, a notificação fica no Mac — <strong>não passa para o iPhone</strong>.
-              Faça isto no telemóvel:
-            </p>
-            <ol className="admin-alert-steps">
-              <li>Instale a app <strong>ntfy</strong> no iPhone (App Store)</li>
-              <li>No iPhone, abra a câmara e <strong>leia o QR code</strong> ao lado</li>
-              <li>Toque em <strong>Abrir em ntfy</strong> → <strong>Subscribe</strong> → <strong>Permitir</strong></li>
-            </ol>
-            <p className="muted-text admin-alert-link-label">
-              Sem QR: no iPhone abra{" "}
-              <a href={notificationSetup.subscribeUrl}>{notificationSetup.subscribeUrl}</a>
-            </p>
-          </div>
-          <div className="admin-alert-mobile-qr">
-            <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(notificationSetup.subscribeUrl)}`}
-              alt="QR code para activar alertas no iPhone"
-              width={180}
-              height={180}
-            />
-            <span className="muted-text">Ler com o iPhone</span>
-          </div>
         </section>
       )}
 
