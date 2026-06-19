@@ -1,6 +1,12 @@
 import type { PricingRule } from "../api";
 
-export function PricingInfo({ rules }: { rules: PricingRule[] }) {
+export function PricingInfo({
+  rules,
+  publicPage = false,
+}: {
+  rules: PricingRule[];
+  publicPage?: boolean;
+}) {
   return (
     <section className="panel">
       <h2>Tarifas</h2>
@@ -8,7 +14,9 @@ export function PricingInfo({ rules }: { rules: PricingRule[] }) {
         <div className="list-item">
           <div>
             <strong>Diária</strong>
-            <div className="muted-text">Até 7 hóspedes · máximo 10</div>
+            <div className="muted-text">
+              {publicPage ? "Lotação 7 pessoas" : "Até 7 hóspedes · máximo 10"}
+            </div>
           </div>
           <span className="badge">100€/noite</span>
         </div>
@@ -19,13 +27,15 @@ export function PricingInfo({ rules }: { rules: PricingRule[] }) {
           </div>
           <span className="badge">200€</span>
         </div>
-        <div className="list-item">
-          <div>
-            <strong>Hóspede extra</strong>
-            <div className="muted-text">8.º a 10.º hóspede</div>
+        {!publicPage && (
+          <div className="list-item">
+            <div>
+              <strong>Hóspede extra</strong>
+              <div className="muted-text">8.º a 10.º hóspede</div>
+            </div>
+            <span className="badge">+15€/noite</span>
           </div>
-          <span className="badge">+15€/noite</span>
-        </div>
+        )}
         {rules.map((rule) => (
           <div className="list-item" key={rule.id}>
             <div>
