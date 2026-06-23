@@ -442,21 +442,72 @@ export async function pricingRoutes(app: FastifyInstance) {
 }
 
 export async function blockRoutes(app: FastifyInstance) {
+  app.get("/blocks", { preHandler: requireAdmin }, async (request) => {
+    const { propertyId } = request.query as { propertyId?: string };
+
+    if (!propertyId) {
+      return [];
+    }
+
+    return prisma.availabilityBlock.findMany({
+      where: { propertyId },
+      orderBy: { startDate: "asc" },
+    });
+  });
+
   app.post("/blocks", { preHandler: requireAdmin }, async (request, reply) => {
     const body = createBlockSchema.parse(request.body);
     const startDate = toDateOnly(body.startDate);
     const endDate = toDateOnly(body.endDate);
+
+    if (endDate < startDate) {
+      return reply.status(400).send({ error: "A data de fim deve ser igual ou posterior à data de início" });
+    }
+
+    const [reservations, blocks] = await Promise.all([
+      prisma.reservation.findMany({ where: { propertyId: body.propertyId } }),
+      prisma.availabilityBlock.findMany({ where: { propertyId: body.propertyId } }),
+    ]);
+
+    const conflicts = findAvailabilityConflicts({
+      propertyId: body.propertyId,
+      checkIn: startDate,
+      checkOut: endDate,
+      reservations,
+      blocks,
+    });
+
+    if (conflicts.length > 0) {
+      const first = conflicts[0];
+      return reply.status(409).send({
+        error: `Conflito com ${first.type === "reservation" ? "reserva" : "bloqueio"} (${first.label}) entre ${first.startDate} e ${first.endDate}`,
+      });
+    }
 
     const block = await prisma.availabilityBlock.create({
       data: {
         propertyId: body.propertyId,
         startDate,
         endDate,
-        reason: body.reason,
+        reason: body.reason?.trim() || "Bloqueio manual",
       },
     });
 
     return reply.status(201).send(block);
+  });
+
+  app.delete("/blocks/:id", { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const existing = await prisma.availabilityBlock.findUnique({ where: { id } });
+
+    if (!existing) {
+      return reply.status(404).send({ error: "Bloqueio não encontrado" });
+    }
+
+    await prisma.availabilityBlock.delete({ where: { id } });
+
+    return reply.send({ success: true });
   });
 }
 

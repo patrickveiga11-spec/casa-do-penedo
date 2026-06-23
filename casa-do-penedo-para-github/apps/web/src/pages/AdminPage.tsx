@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   api,
+  type AvailabilityBlock,
   type Kpis,
   type PricingRule,
   type Property,
@@ -27,7 +28,7 @@ export default function AdminPage() {
   const [kpis, setKpis] = useState<Kpis | null>(null);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [pricingRules, setPricingRules] = useState<PricingRule[]>([]);
-  const [blocks, setBlocks] = useState<{ startDate: string; endDate: string; reason: string | null }[]>([]);
+  const [blocks, setBlocks] = useState<AvailabilityBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -61,6 +62,14 @@ export default function AdminPage() {
   >();
   const [pendingAlert, setPendingAlert] = useState<string | null>(null);
   const knownPendingIdsRef = useRef<Set<string> | null>(null);
+  const [blockForm, setBlockForm] = useState({ startDate: "", endDate: "", reason: "" });
+  const [blockError, setBlockError] = useState<string | null>(null);
+  const [blockNotice, setBlockNotice] = useState<string | null>(null);
+  const [submittingBlock, setSubmittingBlock] = useState(false);
+  const [deletingBlockId, setDeletingBlockId] = useState<string | null>(null);
+  const sortedBlocks = [...blocks].sort((a, b) =>
+    dateKeyFromIso(a.startDate).localeCompare(dateKeyFromIso(b.startDate))
+  );
 
   const range = monthRange(calendarMonth);
   const kpiMonth = `${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth() + 1).padStart(2, "0")}`;
@@ -75,17 +84,17 @@ export default function AdminPage() {
     detailSubtotal !== null ? Math.round(detailSubtotal * (1 - editDiscount / 100) * 100) / 100 : null;
 
   async function loadAll(selectedProperty: Property) {
-    const [kpiData, calendar, reservationData, ruleData] = await Promise.all([
+    const [kpiData, reservationData, ruleData, blockData] = await Promise.all([
       api.getKpis(selectedProperty.id, kpiMonth),
-      api.getCalendar(selectedProperty.id, range.from, range.to, true),
       api.getReservations(selectedProperty.id),
       api.getPricingRules(selectedProperty.id),
+      api.getBlocks(selectedProperty.id),
     ]);
 
     setKpis(kpiData);
     setReservations(reservationData);
     setPricingRules(ruleData);
-    setBlocks(calendar.blocks);
+    setBlocks(blockData);
 
     const pendingIds = new Set(
       reservationData.filter((reservation) => reservation.status === "PENDING").map((reservation) => reservation.id)
@@ -300,6 +309,49 @@ export default function AdminPage() {
     }
   }
 
+  async function handleCreateBlock(event: React.FormEvent) {
+    event.preventDefault();
+    if (!property) return;
+
+    setSubmittingBlock(true);
+    setBlockError(null);
+    setBlockNotice(null);
+
+    try {
+      await api.createBlock({
+        propertyId: property.id,
+        startDate: blockForm.startDate,
+        endDate: blockForm.endDate,
+        reason: blockForm.reason.trim() || undefined,
+      });
+      setBlockForm({ startDate: "", endDate: "", reason: "" });
+      setBlockNotice("Datas bloqueadas. Já não aparecem disponíveis na página pública.");
+      await loadAll(property);
+    } catch (err) {
+      setBlockError(err instanceof Error ? err.message : "Erro ao bloquear datas");
+    } finally {
+      setSubmittingBlock(false);
+    }
+  }
+
+  async function handleDeleteBlock(blockId: string) {
+    if (!property) return;
+
+    setDeletingBlockId(blockId);
+    setBlockError(null);
+    setBlockNotice(null);
+
+    try {
+      await api.deleteBlock(blockId);
+      setBlockNotice("Bloqueio removido. As datas voltam a ficar disponíveis.");
+      await loadAll(property);
+    } catch (err) {
+      setBlockError(err instanceof Error ? err.message : "Erro ao remover bloqueio");
+    } finally {
+      setDeletingBlockId(null);
+    }
+  }
+
   async function handleDeleteReservation(reservation: Reservation) {
     if (!property) return;
 
@@ -435,6 +487,79 @@ export default function AdminPage() {
                   }
             }
           />
+
+          <div className="block-panel">
+            <h3>Bloquear datas</h3>
+            <p className="muted-text panel-hint">
+              Marca dias como indisponíveis sem criar reserva. Aparecem a vermelho no calendário e como «Ocupado» na
+              página pública.
+            </p>
+            {blockNotice && <div className="alert success">{blockNotice}</div>}
+            {blockError && <div className="alert">{blockError}</div>}
+            <form className="stack block-form" onSubmit={handleCreateBlock}>
+              <div className="field-row">
+                <DateField
+                  id="blockStart"
+                  label="Desde"
+                  value={blockForm.startDate}
+                  onChange={(startDate) =>
+                    setBlockForm((current) => ({
+                      ...current,
+                      startDate,
+                      endDate: current.endDate || startDate,
+                    }))
+                  }
+                  required
+                />
+                <DateField
+                  id="blockEnd"
+                  label="Até"
+                  value={blockForm.endDate}
+                  onChange={(endDate) => setBlockForm((current) => ({ ...current, endDate }))}
+                  required
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="blockReason">Motivo (opcional)</label>
+                <input
+                  id="blockReason"
+                  value={blockForm.reason}
+                  placeholder="Ex: Uso pessoal, manutenção"
+                  onChange={(event) => setBlockForm((current) => ({ ...current, reason: event.target.value }))}
+                />
+              </div>
+              <button className="btn secondary" type="submit" disabled={submittingBlock}>
+                {submittingBlock ? "A bloquear…" : "Bloquear datas"}
+              </button>
+            </form>
+
+            {sortedBlocks.length > 0 && (
+              <div className="block-list">
+                <h4>Bloqueios activos</h4>
+                {sortedBlocks.map((block) => (
+                  <div className="list-item block-item" key={block.id}>
+                    <div>
+                      <strong>
+                        {formatDate(block.startDate)}
+                        {dateKeyFromIso(block.startDate) !== dateKeyFromIso(block.endDate)
+                          ? ` → ${formatDate(block.endDate)}`
+                          : ""}
+                      </strong>
+                      <div className="muted-text">{block.reason ?? "Bloqueio manual"}</div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn secondary btn-small"
+                      disabled={deletingBlockId === block.id}
+                      onClick={() => handleDeleteBlock(block.id)}
+                    >
+                      {deletingBlockId === block.id ? "A remover…" : "Desbloquear"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </section>
 
         <section className="stack">

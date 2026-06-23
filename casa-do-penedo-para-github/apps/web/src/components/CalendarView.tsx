@@ -128,9 +128,8 @@ export function CalendarView({
           const block = blockForDay(date);
           const selected = dayInSelectedRange(dayKey);
           const focused = dayInFocusRange(dayKey);
-          const occupied = Boolean(reservation || block);
           const showMark = hideGuestNames
-            ? Boolean(reservation)
+            ? Boolean(reservation || block)
             : selectedRange
               ? selected
               : Boolean(reservation);
@@ -139,7 +138,9 @@ export function CalendarView({
               ? "Ocupado"
               : reservation.guestName
             : block
-              ? (block.reason ?? "Indisponível")
+              ? hideGuestNames
+                ? "Ocupado"
+                : (block.reason ?? "Bloqueio manual")
               : null;
 
           return (
@@ -148,7 +149,7 @@ export function CalendarView({
               className={[
                 "calendar-day",
                 !inMonth ? "muted" : "",
-                occupied ? "booked" : "",
+                reservation ? "booked" : "",
                 selected ? "selected" : "",
                 focused ? "focused" : "",
                 block ? "blocked" : "",
@@ -176,9 +177,12 @@ export function CalendarView({
             <span><i className="legend booked" /> Ocupado</span>
           </>
         ) : hideGuestNames ? (
-          <span><i className="legend booked" /> Ocupado (reserva provisória ou confirmada)</span>
+          <span><i className="legend booked" /> Ocupado (reserva ou indisponível)</span>
         ) : (
-          <span><i className="legend booked" /> Ocupado</span>
+          <>
+            <span><i className="legend booked" /> Reserva</span>
+            <span><i className="legend blocked" /> Bloqueio manual</span>
+          </>
         )}
         <span><i className="legend free" /> Disponível</span>
       </div>

@@ -521,6 +521,34 @@ button {
   white-space: nowrap;
 }
 
+.block-panel {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.block-panel h3 {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+}
+
+.block-panel h4 {
+  margin: 20px 0 12px;
+  font-size: 0.95rem;
+}
+
+.block-form {
+  margin-top: 12px;
+}
+
+.block-list {
+  margin-top: 8px;
+}
+
+.block-item {
+  align-items: center;
+}
+
 .field-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -595,6 +623,11 @@ button {
 .legend.booked {
   background: #d1fae5;
   border: 1px solid #059669;
+}
+
+.legend.blocked {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
 }
 
 .legend.selected {
