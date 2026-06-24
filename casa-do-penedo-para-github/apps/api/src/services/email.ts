@@ -17,6 +17,7 @@ interface ReservationEmailInput {
 export interface EmailSendResult {
   sent: boolean;
   reason?: string;
+  welcomeGuideAttached?: boolean;
 }
 
 interface EmailPayload {
@@ -194,7 +195,8 @@ function buildEmailContent({ reservation, property }: ReservationEmailInput) {
 
 function buildFinalConfirmationEmailContent(
   { reservation, property }: ReservationEmailInput,
-  includeRegulamentoNote = false
+  includeRegulamentoNote = false,
+  includeGuideNote = false
 ) {
   const checkIn = formatDate(reservation.checkIn);
   const checkOut = formatDate(reservation.checkOut);
@@ -219,6 +221,9 @@ function buildFinalConfirmationEmailContent(
     reservation.guestPhone ? `Telemóvel: ${reservation.guestPhone}` : "",
     "",
     includeRegulamentoNote ? "Em anexo enviamos o regulamento interno da Casa do Penedo." : "",
+    includeGuideNote
+      ? "Em anexo enviamos também o guia de boas-vindas com informações úteis para a tua chegada."
+      : "",
     "",
     "Entraremos em contacto em breve para acertar o pagamento e os detalhes da estadia.",
     "",
@@ -246,6 +251,7 @@ function buildFinalConfirmationEmailContent(
         <tr><td style="padding: 8px 0; color: #6b7280;">Valor a pagar</td><td style="padding: 8px 0;"><strong style="font-size: 1.1em;">${total}</strong></td></tr>
       </table>
       ${includeRegulamentoNote ? "<p>Em anexo enviamos o <strong>regulamento interno</strong> da Casa do Penedo.</p>" : ""}
+      ${includeGuideNote ? "<p>Em anexo enviamos também o <strong>guia de boas-vindas</strong> com informações úteis para a tua chegada.</p>" : ""}
       <p>Entraremos em contacto em breve para acertar o pagamento e os detalhes da estadia.</p>
       <p style="color: #6b7280; margin-top: 32px;">Casa do Penedo</p>
     </div>
@@ -628,7 +634,10 @@ export async function sendOwnerNewReservationNotification(
   });
 }
 
-export async function sendReservationFinalConfirmation(input: ReservationEmailInput): Promise<EmailSendResult> {
+export async function sendReservationFinalConfirmation(
+  input: ReservationEmailInput,
+  options: { includeWelcomeGuide?: boolean } = {}
+): Promise<EmailSendResult> {
   const email = input.reservation.guestEmail;
 
   if (!email) {
@@ -637,9 +646,15 @@ export async function sendReservationFinalConfirmation(input: ReservationEmailIn
 
   const configError = getEmailConfigError();
   const regulamento = loadRegulamentoAttachment();
+  const includeWelcomeGuide = options.includeWelcomeGuide ?? false;
+  const guide = includeWelcomeGuide ? loadWelcomeGuideAttachment() : null;
 
   if (configError) {
-    const { subject, text } = buildFinalConfirmationEmailContent(input, Boolean(regulamento));
+    const { subject, text } = buildFinalConfirmationEmailContent(
+      input,
+      Boolean(regulamento),
+      Boolean(guide)
+    );
     console.log("[email:preview]", configError);
     console.log(`Para: ${email}`);
     console.log(`Assunto: ${subject}`);
@@ -647,22 +662,39 @@ export async function sendReservationFinalConfirmation(input: ReservationEmailIn
     return { sent: false, reason: configError };
   }
 
-  const { subject, text, html } = buildFinalConfirmationEmailContent(input, Boolean(regulamento));
+  const { subject, text, html } = buildFinalConfirmationEmailContent(
+    input,
+    Boolean(regulamento),
+    Boolean(guide)
+  );
 
   if (!regulamento) {
     console.warn("[email:attachment] Regulamento interno não encontrado — email enviado sem anexo");
   }
 
-  return sendEmail({
+  if (includeWelcomeGuide && !guide) {
+    console.warn("[email:attachment] Guia de boas-vindas não encontrado — email enviado sem guia");
+  }
+
+  const attachments = [regulamento, guide].filter(
+    (attachment): attachment is EmailAttachment => attachment !== null
+  );
+
+  const sendResult = await sendEmail({
     to: email,
     toName: input.reservation.guestName,
     subject,
     text,
     html,
-    attachments: regulamento ? [regulamento] : undefined,
+    attachments: attachments.length > 0 ? attachments : undefined,
     tags: ["reserva", "cliente"],
     includeOwnerBcc: false,
   });
+
+  return {
+    ...sendResult,
+    welcomeGuideAttached: sendResult.sent && Boolean(guide),
+  };
 }
 
 export async function sendWelcomeGuideEmail(input: ReservationEmailInput): Promise<EmailSendResult> {
