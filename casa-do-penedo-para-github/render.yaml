@@ -19,22 +19,18 @@ services:
         sync: false
       - key: OWNER_EMAIL
         sync: false
-      - key: CRON_SECRET
-        sync: false
 
   - type: cron
     name: casa-do-penedo-welcome-emails
     runtime: node
-    schedule: "0 9 * * *"
-    timezone: Europe/Lisbon
-    buildCommand: npm install --include=dev && npm run build:api
-    startCommand: npm run cron:welcome -w @casa/api
+    schedule: "0 8 * * *"
+    buildCommand: "true"
+    startCommand: >-
+      curl -fsS -X POST "https://casa-do-penedo.onrender.com/cron/welcome-emails"
+      -H "Authorization: Bearer ${ADMIN_PASSWORD}"
     envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: BREVO_API_KEY
-        sync: false
-      - key: SMTP_FROM
-        sync: false
-      - key: OWNER_EMAIL
-        sync: false
+      - key: ADMIN_PASSWORD
+        fromService:
+          name: casa-do-penedo-api
+          type: web
+          envVarKey: ADMIN_PASSWORD

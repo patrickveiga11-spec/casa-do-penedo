@@ -101,14 +101,25 @@ Isto cria a propriedade «Casa do Penedo» e as regras de preço.
 
 ---
 
-## Passo 6 — Guia de boas-vindas (PDF + envio automático)
+## Passo 6 — Guia de boas-vindas (automático às 9h)
 
-1. Coloca o ficheiro **`guia-boas-vindas.pdf`** em `apps/api/assets/` (junto ao regulamento).
-2. Publica no GitHub (o build copia os PDFs para produção).
+O PDF está em `apps/api/assets/guia-boas-vindas.pdf`.
 
-O cliente recebe o guia **2 dias antes do check-in**. Basta **abrires a gestão** (`/gestao`) **depois das 9h** nesse dia — o envio corre sozinho. Se validares a reserva com **menos de 2 dias** de antecedência, o guia é enviado **logo na validação**.
+**Envio automático no Render (recomendado):**
 
-Opcional: cron no Render às 9h (não é obrigatório).
+O ficheiro `render.yaml` já inclui um **Cron Job** que, todos os dias às 9h (hora de Lisboa), chama a API e envia o guia (2 dias antes do check-in). Usa a mesma password da gestão — **não precisa de `CRON_SECRET`**.
+
+1. Render → **Dashboard** → **Blueprints** (ou o teu serviço `casa-do-penedo-api`)
+2. Se já usas Blueprint: **Sync** / **Apply changes** para criar o cron `casa-do-penedo-welcome-emails`
+3. Se criaste a API manualmente: **New → Cron Job** → mesmo repositório GitHub → agenda `0 8 * * *` (UTC ≈ 9h em Lisboa no verão) → comando:
+   ```bash
+   curl -fsS -X POST "https://casa-do-penedo.onrender.com/cron/welcome-emails" -H "Authorization: Bearer $ADMIN_PASSWORD"
+   ```
+4. Variável de ambiente no cron: `ADMIN_PASSWORD` = a mesma da gestão (`/gestao`)
+
+Custo: cron no Render tem mínimo ~**1 €/mês** (só corre alguns segundos por dia).
+
+Reservas validadas com **menos de 2 dias** de antecedência recebem o guia **logo na validação** (não esperam pelo cron).
 
 ---
 
