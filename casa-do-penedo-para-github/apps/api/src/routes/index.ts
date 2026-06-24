@@ -11,6 +11,7 @@ import {
 import {
   maybeRunDailyWelcomeEmails,
   processWelcomeEmailAfterValidation,
+  shouldSendWelcomeOnValidation,
 } from "../services/welcome-email.js";
 import { createBlockSchema, createPricingRuleSchema, createReservationSchema, quoteSchema, updateReservationSchema } from "../schemas.js";
 import { formatDate, monthBounds, nightsInRange, toDateOnly } from "../lib/dates.js";
@@ -284,10 +285,15 @@ export async function reservationRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "Reserva sem email do cliente" });
     }
 
-    const emailResult = await sendReservationFinalConfirmation({
-      reservation: existing,
-      property: existing.property,
-    });
+    const includeWelcomeGuide = shouldSendWelcomeOnValidation(existing.checkIn);
+
+    const emailResult = await sendReservationFinalConfirmation(
+      {
+        reservation: existing,
+        property: existing.property,
+      },
+      { includeWelcomeGuide }
+    );
 
     if (!emailResult.sent) {
       return reply.status(502).send({
@@ -301,21 +307,28 @@ export async function reservationRoutes(app: FastifyInstance) {
       data: {
         validatedAt: new Date(),
         status: "CONFIRMED",
+        ...(emailResult.welcomeGuideAttached ? { welcomeEmailSentAt: new Date() } : {}),
       },
       include: { property: true },
     });
 
-    const welcomeResult = await processWelcomeEmailAfterValidation(reservation);
+    let welcomeEmailSent = Boolean(emailResult.welcomeGuideAttached);
+    let welcomeEmailNote: string | undefined;
 
-    if (!welcomeResult.sent && welcomeResult.reason) {
-      console.warn("[email:welcome-after-validation]", reservation.id, welcomeResult.reason);
+    if (!welcomeEmailSent) {
+      const welcomeResult = await processWelcomeEmailAfterValidation(reservation);
+      welcomeEmailSent = welcomeResult.sent;
+      welcomeEmailNote = welcomeResult.reason;
+      if (!welcomeResult.sent && welcomeResult.reason) {
+        console.warn("[email:welcome-after-validation]", reservation.id, welcomeResult.reason);
+      }
     }
 
     return reply.send({
       ...reservation,
       emailSent: true,
-      welcomeEmailSent: welcomeResult.sent,
-      welcomeEmailNote: welcomeResult.reason,
+      welcomeEmailSent,
+      welcomeEmailNote,
     });
   });
 
