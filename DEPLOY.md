@@ -115,7 +115,7 @@ O ficheiro `render.yaml` já inclui um **Cron Job** que, todos os dias às 9h (h
    ```bash
    curl -fsS -X POST "https://casa-do-penedo.onrender.com/cron/welcome-emails" -H "Authorization: Bearer $ADMIN_PASSWORD"
    ```
-4. Variável de ambiente no cron: `ADMIN_PASSWORD` = a mesma da gestão (`/gestao`)
+4. Variável de ambiente no cron: `ADMIN_PASSWORD` = **a mesma** que já tens na API (password da gestão `/gestao`)
 
 Custo: cron no Render tem mínimo ~**1 €/mês** (só corre alguns segundos por dia).
 

@@ -30,7 +30,4 @@ services:
       -H "Authorization: Bearer ${ADMIN_PASSWORD}"
     envVars:
       - key: ADMIN_PASSWORD
-        fromService:
-          name: casa-do-penedo-api
-          type: web
-          envVarKey: ADMIN_PASSWORD
+        sync: false
