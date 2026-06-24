@@ -101,25 +101,37 @@ Isto cria a propriedade «Casa do Penedo» e as regras de preço.
 
 ---
 
-## Passo 6 — Guia de boas-vindas (automático às 9h)
+## Passo 6 — Guia de boas-vindas (automático às 9h, grátis)
 
 O PDF está em `apps/api/assets/guia-boas-vindas.pdf`.
 
-**Envio automático no Render (recomendado):**
+**Envio automático com GitHub Actions (grátis):**
 
-O ficheiro `render.yaml` já inclui um **Cron Job** que, todos os dias às 9h (hora de Lisboa), chama a API e envia o guia (2 dias antes do check-in). Usa a mesma password da gestão — **não precisa de `CRON_SECRET`**.
+Todos os dias às ~9h (Lisboa), o GitHub chama a API e envia o guia (2 dias antes do check-in). Usa a mesma password da gestão — **não precisa de `CRON_SECRET`**.
 
-1. Render → **Dashboard** → **Blueprints** (ou o teu serviço `casa-do-penedo-api`)
-2. Se já usas Blueprint: **Sync** / **Apply changes** para criar o cron `casa-do-penedo-welcome-emails`
-3. Se criaste a API manualmente: **New → Cron Job** → mesmo repositório GitHub → agenda `0 8 * * *` (UTC ≈ 9h em Lisboa no verão) → comando:
-   ```bash
-   curl -fsS -X POST "https://casa-do-penedo.onrender.com/cron/welcome-emails" -H "Authorization: Bearer $ADMIN_PASSWORD"
-   ```
-4. Variável de ambiente no cron: `ADMIN_PASSWORD` = **a mesma** que já tens na API (password da gestão `/gestao`)
+### A) Criar o ficheiro do workflow (uma vez)
 
-Custo: cron no Render tem mínimo ~**1 €/mês** (só corre alguns segundos por dia).
+1. Abre https://github.com/patrickveiga11-spec/casa-do-penedo
+2. Clica **Add file** → **Create new file**
+3. Nome do ficheiro: `.github/workflows/welcome-emails.yml`
+4. Cola o conteúdo do ficheiro `welcome-emails.yml` que está no projecto (ou pergunta ao assistente)
+5. **Commit changes**
+
+### B) Segredos (uma vez)
+
+1. GitHub → repositório → **Settings** → **Secrets and variables** → **Actions**
+2. **New repository secret:**
+   - `CASA_API_URL` = `https://casa-do-penedo.onrender.com`
+   - `CASA_ADMIN_PASSWORD` = a mesma password da gestão (`/gestao`)
+
+### C) Testar
+
+1. GitHub → **Actions** → workflow «Enviar guia de boas-vindas»
+2. **Run workflow** → confirma que fica verde
 
 Reservas validadas com **menos de 2 dias** de antecedência recebem o guia **logo na validação** (não esperam pelo cron).
+
+> **Nota:** Cron no Render custa ~1 €/mês. Para solução grátis, usa GitHub Actions (acima).
 
 ---
 
