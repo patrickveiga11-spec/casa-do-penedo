@@ -1,7 +1,17 @@
 /** Cron diário (Vercel): chama a API no Render para enviar guias de boas-vindas. */
+function getAuthorizationHeader(req) {
+  const headers = req.headers;
+
+  if (headers && typeof headers.get === "function") {
+    return headers.get("authorization") ?? headers.get("Authorization");
+  }
+
+  return headers?.authorization ?? headers?.Authorization;
+}
+
 export default async function handler(req, res) {
   const cronSecret = process.env.CRON_SECRET?.trim();
-  const authHeader = req.headers.authorization;
+  const authHeader = getAuthorizationHeader(req)?.trim();
 
   if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return res.status(401).json({ error: "Não autorizado" });
