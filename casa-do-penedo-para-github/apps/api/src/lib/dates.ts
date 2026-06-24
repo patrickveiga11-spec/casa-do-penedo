@@ -65,3 +65,25 @@ export function monthBounds(month: string) {
 export function nightsInRange(checkIn: Date, checkOut: Date, rangeStart: Date, rangeEnd: Date) {
   return eachNight(checkIn, checkOut).filter((night) => night >= rangeStart && night <= rangeEnd).length;
 }
+
+const LISBON_TIMEZONE = "Europe/Lisbon";
+
+export function getDateKeyInTimeZone(date = new Date(), timeZone = LISBON_TIMEZONE): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone }).format(date);
+}
+
+export function daysBetweenDateKeys(startKey: string, endKey: string): number {
+  const start = toDateOnly(startKey);
+  const end = toDateOnly(endKey);
+  return Math.round((end.getTime() - start.getTime()) / 86_400_000);
+}
+
+export function daysUntilCheckIn(checkIn: Date, from = new Date()): number {
+  const todayKey = getDateKeyInTimeZone(from);
+  const checkInKey = formatDate(toDateOnly(checkIn));
+  return daysBetweenDateKeys(todayKey, checkInKey);
+}
+
+export function addDaysToDateKey(dateKey: string, days: number): string {
+  return formatDate(addDays(toDateOnly(dateKey), days));
+}

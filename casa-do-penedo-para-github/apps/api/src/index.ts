@@ -10,6 +10,7 @@ import {
   reservationRoutes,
 } from "./routes/index.js";
 import { authRoutes } from "./routes/auth.js";
+import { cronRoutes } from "./routes/cron.js";
 
 loadEnv();
 
@@ -28,6 +29,7 @@ await app.register(calendarRoutes);
 await app.register(pricingRoutes);
 await app.register(blockRoutes);
 await app.register(dashboardRoutes);
+await app.register(cronRoutes);
 
 try {
   await app.listen({ port, host: "0.0.0.0" });

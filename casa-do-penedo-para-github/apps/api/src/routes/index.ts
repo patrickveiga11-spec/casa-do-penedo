@@ -8,6 +8,7 @@ import {
   sendReservationConfirmation,
   sendReservationFinalConfirmation,
 } from "../services/email.js";
+import { processWelcomeEmailAfterValidation } from "../services/welcome-email.js";
 import { createBlockSchema, createPricingRuleSchema, createReservationSchema, quoteSchema, updateReservationSchema } from "../schemas.js";
 import { formatDate, monthBounds, nightsInRange, toDateOnly } from "../lib/dates.js";
 import { requireAdmin, verifyAdminToken } from "../lib/admin-auth.js";
@@ -301,7 +302,18 @@ export async function reservationRoutes(app: FastifyInstance) {
       include: { property: true },
     });
 
-    return reply.send({ ...reservation, emailSent: true });
+    const welcomeResult = await processWelcomeEmailAfterValidation(reservation);
+
+    if (!welcomeResult.sent && welcomeResult.reason) {
+      console.warn("[email:welcome-after-validation]", reservation.id, welcomeResult.reason);
+    }
+
+    return reply.send({
+      ...reservation,
+      emailSent: true,
+      welcomeEmailSent: welcomeResult.sent,
+      welcomeEmailNote: welcomeResult.reason,
+    });
   });
 
   app.post("/reservations/check-availability", async (request) => {

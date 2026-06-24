@@ -12,7 +12,8 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:generate": "prisma generate",
-    "test:email": "tsx scripts/test-email.ts"
+    "test:email": "tsx scripts/test-email.ts",
+    "cron:welcome": "tsx scripts/send-welcome-emails.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.2",

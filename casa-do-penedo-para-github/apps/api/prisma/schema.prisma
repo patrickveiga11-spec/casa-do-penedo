@@ -83,6 +83,7 @@ model Reservation {
   status          ReservationStatus @default(PENDING)
   notes           String?
   validatedAt     DateTime?
+  welcomeEmailSentAt DateTime?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 

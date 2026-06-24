@@ -1,7 +1,15 @@
 # Anexos de email
 
-Coloque aqui o ficheiro **`regulamento-interno.pdf`**.
+Coloque aqui os PDFs usados nos emails automáticos:
 
-Este PDF é enviado em anexo no email de **confirmação final** (quando valida a reserva na gestão).
+| Ficheiro | Quando é enviado |
+|----------|------------------|
+| **`regulamento-interno.pdf`** | Email de confirmação final (ao validar a reserva) |
+| **`guia-boas-vindas.pdf`** | Email de boas-vindas (2 dias antes do check-in, às 9h) |
 
-Pode usar outro caminho definindo a variável `REGULAMENTO_PDF_PATH` no Render (caminho absoluto no servidor).
+Variáveis opcionais no Render:
+
+- `REGULAMENTO_PDF_PATH` — caminho absoluto ao regulamento
+- `GUIA_BOAS_VINDAS_PDF_PATH` — caminho absoluto ao guia de boas-vindas
+
+O envio automático do guia usa a tarefa `cron:welcome` (9h, hora de Lisboa). Se a reserva for validada com menos de 2 dias para o check-in, o guia é enviado logo na validação.

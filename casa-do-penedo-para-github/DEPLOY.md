@@ -101,6 +101,17 @@ Isto cria a propriedade «Casa do Penedo» e as regras de preço.
 
 ---
 
+## Passo 6 — Guia de boas-vindas (PDF + envio automático)
+
+1. Coloca o ficheiro **`guia-boas-vindas.pdf`** em `apps/api/assets/` (junto ao regulamento).
+2. Publica no GitHub (o build copia os PDFs para produção).
+3. No Render, no serviço da API, adiciona **`CRON_SECRET`** — uma palavra-passe longa à tua escolha (ex. gera uma no 1Password).
+4. Se usares o `render.yaml`, cria também o **Cron Job** `casa-do-penedo-welcome-emails` (9h, Lisboa) com as mesmas variáveis `DATABASE_URL`, `BREVO_API_KEY`, `SMTP_FROM`, `OWNER_EMAIL`.
+
+O cliente recebe o guia **2 dias antes do check-in às 9h**. Se validares a reserva com menos de 2 dias de antecedência, o guia é enviado **logo na validação**.
+
+---
+
 ## O que enviar ao cliente
 
 **Só o link da Vercel:**

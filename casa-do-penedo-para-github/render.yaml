@@ -19,3 +19,22 @@ services:
         sync: false
       - key: OWNER_EMAIL
         sync: false
+      - key: CRON_SECRET
+        sync: false
+
+  - type: cron
+    name: casa-do-penedo-welcome-emails
+    runtime: node
+    schedule: "0 9 * * *"
+    timezone: Europe/Lisbon
+    buildCommand: npm install --include=dev && npm run build:api
+    startCommand: npm run cron:welcome -w @casa/api
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: OWNER_EMAIL
+        sync: false

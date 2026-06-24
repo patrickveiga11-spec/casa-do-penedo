@@ -75,6 +75,42 @@ function loadRegulamentoAttachment(): EmailAttachment | null {
   };
 }
 
+function resolveWelcomeGuidePdfPath(): string | null {
+  const customPath = process.env.GUIA_BOAS_VINDAS_PDF_PATH?.trim();
+  if (customPath && existsSync(customPath)) {
+    return customPath;
+  }
+
+  const moduleDir = dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    join(moduleDir, "../assets/guia-boas-vindas.pdf"),
+    join(process.cwd(), "dist/assets/guia-boas-vindas.pdf"),
+    join(process.cwd(), "assets/guia-boas-vindas.pdf"),
+    join(process.cwd(), "apps/api/assets/guia-boas-vindas.pdf"),
+  ];
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+function loadWelcomeGuideAttachment(): EmailAttachment | null {
+  const path = resolveWelcomeGuidePdfPath();
+  if (!path) {
+    return null;
+  }
+
+  return {
+    filename: "Guia-de-Boas-Vindas-Casa-do-Penedo.pdf",
+    content: readFileSync(path),
+    contentType: "application/pdf",
+  };
+}
+
 function formatDate(date: Date): string {
   return date.toLocaleDateString("pt-PT", {
     weekday: "long",
@@ -211,6 +247,52 @@ function buildFinalConfirmationEmailContent(
       </table>
       ${includeRegulamentoNote ? "<p>Em anexo enviamos o <strong>regulamento interno</strong> da Casa do Penedo.</p>" : ""}
       <p>Entraremos em contacto em breve para acertar o pagamento e os detalhes da estadia.</p>
+      <p style="color: #6b7280; margin-top: 32px;">Casa do Penedo</p>
+    </div>
+  `;
+
+  return { subject, text, html };
+}
+
+function buildWelcomeGuideEmailContent(
+  { reservation, property }: ReservationEmailInput,
+  includeGuideNote = false
+) {
+  const checkIn = formatDate(reservation.checkIn);
+  const checkOut = formatDate(reservation.checkOut);
+
+  const subject = `Bem-vindo à ${property.name}`;
+
+  const text = [
+    `Olá ${reservation.guestName},`,
+    "",
+    "A tua estadia na Casa do Penedo está quase a chegar.",
+    "",
+    `Check-in: ${checkIn}`,
+    `Check-out: ${checkOut}`,
+    "",
+    includeGuideNote
+      ? "Em anexo enviamos o guia de boas-vindas com informações úteis para a tua chegada e estadia."
+      : "",
+    "",
+    "Estamos à disposição para qualquer dúvida. Boa viagem!",
+    "",
+    "Casa do Penedo",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2933; max-width: 560px;">
+      <h2 style="color: #2d6a4f;">Bem-vindo à ${property.name}</h2>
+      <p>Olá <strong>${reservation.guestName}</strong>,</p>
+      <p>A tua estadia na Casa do Penedo está quase a chegar.</p>
+      <table style="width: 100%; border-collapse: collapse; margin: 24px 0;">
+        <tr><td style="padding: 8px 0; color: #6b7280;">Check-in</td><td style="padding: 8px 0;"><strong>${checkIn}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #6b7280;">Check-out</td><td style="padding: 8px 0;"><strong>${checkOut}</strong></td></tr>
+      </table>
+      ${includeGuideNote ? "<p>Em anexo enviamos o <strong>guia de boas-vindas</strong> com informações úteis para a tua chegada e estadia.</p>" : ""}
+      <p>Estamos à disposição para qualquer dúvida. Boa viagem!</p>
       <p style="color: #6b7280; margin-top: 32px;">Casa do Penedo</p>
     </div>
   `;
@@ -579,6 +661,43 @@ export async function sendReservationFinalConfirmation(input: ReservationEmailIn
     html,
     attachments: regulamento ? [regulamento] : undefined,
     tags: ["reserva", "cliente"],
+    includeOwnerBcc: false,
+  });
+}
+
+export async function sendWelcomeGuideEmail(input: ReservationEmailInput): Promise<EmailSendResult> {
+  const email = input.reservation.guestEmail;
+
+  if (!email) {
+    return { sent: false, reason: "Reserva sem email do hóspede" };
+  }
+
+  const configError = getEmailConfigError();
+  const guide = loadWelcomeGuideAttachment();
+
+  if (configError) {
+    const { subject, text } = buildWelcomeGuideEmailContent(input, Boolean(guide));
+    console.log("[email:preview]", configError);
+    console.log(`Para: ${email}`);
+    console.log(`Assunto: ${subject}`);
+    console.log(text);
+    return { sent: false, reason: configError };
+  }
+
+  const { subject, text, html } = buildWelcomeGuideEmailContent(input, Boolean(guide));
+
+  if (!guide) {
+    console.warn("[email:attachment] Guia de boas-vindas não encontrado — email enviado sem anexo");
+  }
+
+  return sendEmail({
+    to: email,
+    toName: input.reservation.guestName,
+    subject,
+    text,
+    html,
+    attachments: guide ? [guide] : undefined,
+    tags: ["reserva", "cliente", "boas-vindas"],
     includeOwnerBcc: false,
   });
 }
