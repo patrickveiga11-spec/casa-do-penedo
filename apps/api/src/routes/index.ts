@@ -3,10 +3,15 @@ import { prisma } from "../lib/prisma.js";
 import { assertAvailable, findAvailabilityConflicts } from "../services/availability.js";
 import { calculateDynamicPrice, applyReservationDiscount } from "../services/pricing.js";
 import {
+  sendOwnerNewReservationNotification,
   sendReservationCancellation,
   sendReservationConfirmation,
   sendReservationFinalConfirmation,
 } from "../services/email.js";
+import {
+  maybeRunDailyWelcomeEmails,
+  processWelcomeEmailAfterValidation,
+} from "../services/welcome-email.js";
 import { createBlockSchema, createPricingRuleSchema, createReservationSchema, quoteSchema, updateReservationSchema } from "../schemas.js";
 import { formatDate, monthBounds, nightsInRange, toDateOnly } from "../lib/dates.js";
 import { requireAdmin, verifyAdminToken } from "../lib/admin-auth.js";
@@ -154,6 +159,15 @@ export async function reservationRoutes(app: FastifyInstance) {
       emailError = emailResult.reason;
     }
 
+    const ownerEmailResult = await sendOwnerNewReservationNotification({
+      reservation,
+      property: reservation.property,
+    });
+
+    if (!ownerEmailResult.sent) {
+      console.warn("[email:owner-notification]", ownerEmailResult.reason);
+    }
+
     return reply.status(201).send({ ...reservation, emailSent, emailError });
   });
 
@@ -291,7 +305,18 @@ export async function reservationRoutes(app: FastifyInstance) {
       include: { property: true },
     });
 
-    return reply.send({ ...reservation, emailSent: true });
+    const welcomeResult = await processWelcomeEmailAfterValidation(reservation);
+
+    if (!welcomeResult.sent && welcomeResult.reason) {
+      console.warn("[email:welcome-after-validation]", reservation.id, welcomeResult.reason);
+    }
+
+    return reply.send({
+      ...reservation,
+      emailSent: true,
+      welcomeEmailSent: welcomeResult.sent,
+      welcomeEmailNote: welcomeResult.reason,
+    });
   });
 
   app.post("/reservations/check-availability", async (request) => {
@@ -312,7 +337,15 @@ export async function reservationRoutes(app: FastifyInstance) {
       blocks,
     });
 
-    return { available: conflicts.length === 0, conflicts };
+    const isAdmin = verifyAdminToken(request.headers.authorization);
+    const visibleConflicts = isAdmin
+      ? conflicts
+      : conflicts.map((conflict) => ({
+          ...conflict,
+          label: conflict.type === "reservation" ? "Ocupado" : conflict.label,
+        }));
+
+    return { available: visibleConflicts.length === 0, conflicts: visibleConflicts };
   });
 }
 
@@ -352,14 +385,20 @@ export async function calendarRoutes(app: FastifyInstance) {
   });
 }
 
-function anonymizeReservation<T extends { guestName: string; guestEmail: string | null; guestPhone: string | null }>(
-  reservation: T
-) {
+function anonymizeReservation<
+  T extends {
+    guestName: string;
+    guestEmail: string | null;
+    guestPhone: string | null;
+    notes?: string | null;
+  },
+>(reservation: T) {
   return {
     ...reservation,
     guestName: "Ocupado",
     guestEmail: null,
     guestPhone: null,
+    notes: null,
   };
 }
 
@@ -418,26 +457,81 @@ export async function pricingRoutes(app: FastifyInstance) {
 }
 
 export async function blockRoutes(app: FastifyInstance) {
+  app.get("/blocks", { preHandler: requireAdmin }, async (request) => {
+    const { propertyId } = request.query as { propertyId?: string };
+
+    if (!propertyId) {
+      return [];
+    }
+
+    return prisma.availabilityBlock.findMany({
+      where: { propertyId },
+      orderBy: { startDate: "asc" },
+    });
+  });
+
   app.post("/blocks", { preHandler: requireAdmin }, async (request, reply) => {
     const body = createBlockSchema.parse(request.body);
     const startDate = toDateOnly(body.startDate);
     const endDate = toDateOnly(body.endDate);
+
+    if (endDate < startDate) {
+      return reply.status(400).send({ error: "A data de fim deve ser igual ou posterior à data de início" });
+    }
+
+    const [reservations, blocks] = await Promise.all([
+      prisma.reservation.findMany({ where: { propertyId: body.propertyId } }),
+      prisma.availabilityBlock.findMany({ where: { propertyId: body.propertyId } }),
+    ]);
+
+    const conflicts = findAvailabilityConflicts({
+      propertyId: body.propertyId,
+      checkIn: startDate,
+      checkOut: endDate,
+      reservations,
+      blocks,
+    });
+
+    if (conflicts.length > 0) {
+      const first = conflicts[0];
+      return reply.status(409).send({
+        error: `Conflito com ${first.type === "reservation" ? "reserva" : "bloqueio"} (${first.label}) entre ${first.startDate} e ${first.endDate}`,
+      });
+    }
 
     const block = await prisma.availabilityBlock.create({
       data: {
         propertyId: body.propertyId,
         startDate,
         endDate,
-        reason: body.reason,
+        reason: body.reason?.trim() || "Bloqueio manual",
       },
     });
 
     return reply.status(201).send(block);
   });
+
+  app.delete("/blocks/:id", { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const existing = await prisma.availabilityBlock.findUnique({ where: { id } });
+
+    if (!existing) {
+      return reply.status(404).send({ error: "Bloqueio não encontrado" });
+    }
+
+    await prisma.availabilityBlock.delete({ where: { id } });
+
+    return reply.send({ success: true });
+  });
 }
 
 export async function dashboardRoutes(app: FastifyInstance) {
   app.get("/dashboard/kpis", { preHandler: requireAdmin }, async (request) => {
+    void maybeRunDailyWelcomeEmails().catch((error) => {
+      console.warn("[email:welcome-daily]", error);
+    });
+
     const { propertyId, month } = request.query as { propertyId?: string; month?: string };
 
     const now = new Date();

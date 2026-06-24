@@ -324,7 +324,7 @@ export default function BookingPage() {
             </form>
           </div>
 
-          <PricingInfo rules={pricingRules} />
+          <PricingInfo rules={pricingRules} publicPage />
         </section>
       </div>
     </div>

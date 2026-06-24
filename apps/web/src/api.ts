@@ -102,6 +102,12 @@ export const api = {
     request<PriceBreakdown>("/pricing/quote", { method: "POST", body: JSON.stringify(data) }),
   createPricingRule: (data: CreatePricingRuleInput) =>
     request<PricingRule>("/pricing-rules", { method: "POST", body: JSON.stringify(data), admin: true }),
+  getBlocks: (propertyId: string) =>
+    request<AvailabilityBlock[]>(`/blocks?propertyId=${propertyId}`, { admin: true }),
+  createBlock: (data: CreateBlockInput) =>
+    request<AvailabilityBlock>("/blocks", { method: "POST", body: JSON.stringify(data), admin: true }),
+  deleteBlock: (id: string) =>
+    request<{ success: boolean }>(`/blocks/${id}`, { method: "DELETE", admin: true }),
 };
 
 export interface Property {
@@ -212,4 +218,11 @@ export interface CreatePricingRuleInput {
   minNights?: number;
   startDate?: string;
   endDate?: string;
+}
+
+export interface CreateBlockInput {
+  propertyId: string;
+  startDate: string;
+  endDate: string;
+  reason?: string;
 }

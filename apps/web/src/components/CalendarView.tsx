@@ -128,8 +128,20 @@ export function CalendarView({
           const block = blockForDay(date);
           const selected = dayInSelectedRange(dayKey);
           const focused = dayInFocusRange(dayKey);
-          const occupied = Boolean(reservation || block);
-          const showMark = selectedRange ? selected : Boolean(reservation);
+          const showMark = hideGuestNames
+            ? Boolean(reservation || block)
+            : selectedRange
+              ? selected
+              : Boolean(reservation);
+          const occupiedLabel = reservation
+            ? hideGuestNames
+              ? "Ocupado"
+              : reservation.guestName
+            : block
+              ? hideGuestNames
+                ? "Ocupado"
+                : (block.reason ?? "Bloqueio manual")
+              : null;
 
           return (
             <div
@@ -137,7 +149,7 @@ export function CalendarView({
               className={[
                 "calendar-day",
                 !inMonth ? "muted" : "",
-                occupied ? "booked" : "",
+                reservation ? "booked" : "",
                 selected ? "selected" : "",
                 focused ? "focused" : "",
                 block ? "blocked" : "",
@@ -148,15 +160,12 @@ export function CalendarView({
               <div className="date-wrap">
                 <div className="date">{date.getDate()}</div>
                 {showMark && (
-                  <span className="date-mark" aria-label="Selecionado">
+                  <span className="date-mark" aria-label={hideGuestNames ? "Ocupado" : "Selecionado"}>
                     ×
                   </span>
                 )}
               </div>
-              {reservation && !hideGuestNames && (
-                <div className="label">{reservation.guestName}</div>
-              )}
-              {!reservation && block && <div className="label">{block.reason ?? "Indisponível"}</div>}
+              {occupiedLabel && <div className="label">{occupiedLabel}</div>}
             </div>
           );
         })}
@@ -167,8 +176,13 @@ export function CalendarView({
             <span><i className="legend selected" /> As tuas datas</span>
             <span><i className="legend booked" /> Ocupado</span>
           </>
+        ) : hideGuestNames ? (
+          <span><i className="legend booked" /> Ocupado (reserva ou indisponível)</span>
         ) : (
-          <span><i className="legend booked" /> Ocupado</span>
+          <>
+            <span><i className="legend booked" /> Reserva</span>
+            <span><i className="legend blocked" /> Bloqueio manual</span>
+          </>
         )}
         <span><i className="legend free" /> Disponível</span>
       </div>

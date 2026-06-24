@@ -101,6 +101,28 @@ Isto cria a propriedade «Casa do Penedo» e as regras de preço.
 
 ---
 
+## Passo 6 — Guia de boas-vindas (automático às 9h)
+
+O PDF está em `apps/api/assets/guia-boas-vindas.pdf`.
+
+**Envio automático no Render (recomendado):**
+
+O ficheiro `render.yaml` já inclui um **Cron Job** que, todos os dias às 9h (hora de Lisboa), chama a API e envia o guia (2 dias antes do check-in). Usa a mesma password da gestão — **não precisa de `CRON_SECRET`**.
+
+1. Render → **Dashboard** → **Blueprints** (ou o teu serviço `casa-do-penedo-api`)
+2. Se já usas Blueprint: **Sync** / **Apply changes** para criar o cron `casa-do-penedo-welcome-emails`
+3. Se criaste a API manualmente: **New → Cron Job** → mesmo repositório GitHub → agenda `0 8 * * *` (UTC ≈ 9h em Lisboa no verão) → comando:
+   ```bash
+   curl -fsS -X POST "https://casa-do-penedo.onrender.com/cron/welcome-emails" -H "Authorization: Bearer $ADMIN_PASSWORD"
+   ```
+4. Variável de ambiente no cron: `ADMIN_PASSWORD` = a mesma da gestão (`/gestao`)
+
+Custo: cron no Render tem mínimo ~**1 €/mês** (só corre alguns segundos por dia).
+
+Reservas validadas com **menos de 2 dias** de antecedência recebem o guia **logo na validação** (não esperam pelo cron).
+
+---
+
 ## O que enviar ao cliente
 
 **Só o link da Vercel:**

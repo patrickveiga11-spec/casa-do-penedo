@@ -3,6 +3,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Property, Reservation } from "@prisma/client";
+import {
+  isFreeEmailAddress,
+  resolveBrevoSender,
+  shouldUseTextOnlyOwnerEmail,
+} from "./brevo-sender.js";
 
 interface ReservationEmailInput {
   reservation: Reservation;
@@ -19,8 +24,13 @@ interface EmailPayload {
   toName?: string;
   subject: string;
   text: string;
-  html: string;
+  html?: string;
   attachments?: EmailAttachment[];
+  tags?: string[];
+  includeOwnerBcc?: boolean;
+  textOnly?: boolean;
+  replyTo?: { name: string; email: string };
+  headers?: Record<string, string>;
 }
 
 interface EmailAttachment {
@@ -60,6 +70,42 @@ function loadRegulamentoAttachment(): EmailAttachment | null {
 
   return {
     filename: "Regulamento-Interno-Casa-do-Penedo.pdf",
+    content: readFileSync(path),
+    contentType: "application/pdf",
+  };
+}
+
+function resolveWelcomeGuidePdfPath(): string | null {
+  const customPath = process.env.GUIA_BOAS_VINDAS_PDF_PATH?.trim();
+  if (customPath && existsSync(customPath)) {
+    return customPath;
+  }
+
+  const moduleDir = dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    join(moduleDir, "../assets/guia-boas-vindas.pdf"),
+    join(process.cwd(), "dist/assets/guia-boas-vindas.pdf"),
+    join(process.cwd(), "assets/guia-boas-vindas.pdf"),
+    join(process.cwd(), "apps/api/assets/guia-boas-vindas.pdf"),
+  ];
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+function loadWelcomeGuideAttachment(): EmailAttachment | null {
+  const path = resolveWelcomeGuidePdfPath();
+  if (!path) {
+    return null;
+  }
+
+  return {
+    filename: "Guia-de-Boas-Vindas-Casa-do-Penedo.pdf",
     content: readFileSync(path),
     contentType: "application/pdf",
   };
@@ -208,6 +254,52 @@ function buildFinalConfirmationEmailContent(
   return { subject, text, html };
 }
 
+function buildWelcomeGuideEmailContent(
+  { reservation, property }: ReservationEmailInput,
+  includeGuideNote = false
+) {
+  const checkIn = formatDate(reservation.checkIn);
+  const checkOut = formatDate(reservation.checkOut);
+
+  const subject = `Bem-vindo à ${property.name}`;
+
+  const text = [
+    `Olá ${reservation.guestName},`,
+    "",
+    "A tua estadia na Casa do Penedo está quase a chegar.",
+    "",
+    `Check-in: ${checkIn}`,
+    `Check-out: ${checkOut}`,
+    "",
+    includeGuideNote
+      ? "Em anexo enviamos o guia de boas-vindas com informações úteis para a tua chegada e estadia."
+      : "",
+    "",
+    "Estamos à disposição para qualquer dúvida. Boa viagem!",
+    "",
+    "Casa do Penedo",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2933; max-width: 560px;">
+      <h2 style="color: #2d6a4f;">Bem-vindo à ${property.name}</h2>
+      <p>Olá <strong>${reservation.guestName}</strong>,</p>
+      <p>A tua estadia na Casa do Penedo está quase a chegar.</p>
+      <table style="width: 100%; border-collapse: collapse; margin: 24px 0;">
+        <tr><td style="padding: 8px 0; color: #6b7280;">Check-in</td><td style="padding: 8px 0;"><strong>${checkIn}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #6b7280;">Check-out</td><td style="padding: 8px 0;"><strong>${checkOut}</strong></td></tr>
+      </table>
+      ${includeGuideNote ? "<p>Em anexo enviamos o <strong>guia de boas-vindas</strong> com informações úteis para a tua chegada e estadia.</p>" : ""}
+      <p>Estamos à disposição para qualquer dúvida. Boa viagem!</p>
+      <p style="color: #6b7280; margin-top: 32px;">Casa do Penedo</p>
+    </div>
+  `;
+
+  return { subject, text, html };
+}
+
 function buildCancellationEmailContent({ reservation, property }: ReservationEmailInput) {
   const checkIn = formatDate(reservation.checkIn);
   const checkOut = formatDate(reservation.checkOut);
@@ -246,8 +338,68 @@ function buildCancellationEmailContent({ reservation, property }: ReservationEma
   return { subject, text, html };
 }
 
+function getReplyToAddress() {
+  const ownerEmail = process.env.OWNER_EMAIL?.trim();
+  if (!ownerEmail) {
+    return undefined;
+  }
+
+  return { name: "Casa do Penedo", email: ownerEmail };
+}
+
+function buildOwnerNewReservationEmailContent({ reservation, property }: ReservationEmailInput) {
+  const checkIn = formatDate(reservation.checkIn);
+  const checkOut = formatDate(reservation.checkOut);
+  const total = formatMoney(Number(reservation.totalPrice), reservation.currency);
+
+  const subject = `Casa do Penedo — pedido de ${reservation.guestName}`;
+
+  const text = [
+    "Recebeste um novo pedido de reserva na Casa do Penedo.",
+    "",
+    `Hóspede: ${reservation.guestName}`,
+    reservation.guestEmail ? `Email: ${reservation.guestEmail}` : "Email: —",
+    reservation.guestPhone ? `Telemóvel: ${reservation.guestPhone}` : "Telemóvel: —",
+    "",
+    `Check-in: ${checkIn}`,
+    `Check-out: ${checkOut}`,
+    `Hóspedes: ${reservation.guests}`,
+    `Total estimado: ${total}`,
+    "",
+    "Estado: pendente de validação em https://casa-do-penedo.vercel.app/gestao",
+    "",
+    "Casa do Penedo",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2933; max-width: 560px;">
+      <p>Recebeste um novo pedido de reserva na <strong>${property.name}</strong>.</p>
+      <p><strong>Hóspede:</strong> ${reservation.guestName}<br/>
+      <strong>Email:</strong> ${reservation.guestEmail ?? "—"}<br/>
+      <strong>Telemóvel:</strong> ${reservation.guestPhone ?? "—"}<br/>
+      <strong>Check-in:</strong> ${checkIn}<br/>
+      <strong>Check-out:</strong> ${checkOut}<br/>
+      <strong>Hóspedes:</strong> ${reservation.guests}<br/>
+      <strong>Total estimado:</strong> ${total}</p>
+      <p>Validar em <a href="https://casa-do-penedo.vercel.app/gestao">casa-do-penedo.vercel.app/gestao</a></p>
+    </div>
+  `;
+
+  return { subject, text, html };
+}
+
 function getFromAddress() {
   return process.env.SMTP_FROM ?? "Casa do Penedo <casa_do_penedo@outlook.com>";
+}
+
+function shouldIncludeOwnerBcc(payload: EmailPayload) {
+  if (payload.includeOwnerBcc === false) {
+    return false;
+  }
+
+  return process.env.OWNER_BCC !== "false";
 }
 
 export function getEmailConfigError(): string | null {
@@ -267,14 +419,24 @@ async function sendViaBrevoApi(payload: EmailPayload): Promise<EmailSendResult> 
     return { sent: false, reason: "BREVO_API_KEY em falta" };
   }
 
-  const sender = parseFromAddress(getFromAddress());
+  const sender = await resolveBrevoSender(apiKey);
   const ownerEmail = process.env.OWNER_EMAIL?.trim();
-  const bcc = ownerEmail && ownerEmail !== payload.to ? [{ email: ownerEmail }] : undefined;
+  const replyTo = payload.replyTo ?? getReplyToAddress();
+  const bcc =
+    shouldIncludeOwnerBcc(payload) && ownerEmail && ownerEmail !== payload.to
+      ? [{ email: ownerEmail }]
+      : undefined;
   const attachment =
     payload.attachments?.map((file) => ({
       name: file.filename,
       content: file.content.toString("base64"),
     })) ?? undefined;
+
+  if (isFreeEmailAddress(sender.email)) {
+    console.warn(
+      "[email:deliverability] Remetente gratuito via Brevo pode ir para spam. Configure um domínio autenticado no Brevo."
+    );
+  }
 
   const response = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
@@ -284,12 +446,15 @@ async function sendViaBrevoApi(payload: EmailPayload): Promise<EmailSendResult> 
       Accept: "application/json",
     },
     body: JSON.stringify({
-      sender,
+      sender: sender.id ? { id: sender.id, name: sender.name } : { email: sender.email, name: sender.name },
       to: [{ email: payload.to, name: payload.toName }],
+      replyTo,
       bcc,
       subject: payload.subject,
-      htmlContent: payload.html,
+      htmlContent: payload.textOnly ? undefined : payload.html,
       textContent: payload.text,
+      tags: payload.tags,
+      headers: payload.headers,
       ...(attachment?.length ? { attachment } : {}),
     }),
   });
@@ -329,6 +494,7 @@ async function sendViaSmtp(payload: EmailPayload): Promise<EmailSendResult> {
 
   const from = getFromAddress();
   const ownerEmail = process.env.OWNER_EMAIL?.trim();
+  const replyTo = getReplyToAddress();
   const transport = createSmtpTransport();
 
   try {
@@ -336,10 +502,20 @@ async function sendViaSmtp(payload: EmailPayload): Promise<EmailSendResult> {
     await transport.sendMail({
       from,
       to: payload.to,
-      bcc: ownerEmail && ownerEmail !== payload.to ? ownerEmail : undefined,
+      replyTo: (payload.replyTo ?? replyTo) ?
+        {
+          name: (payload.replyTo ?? replyTo)!.name,
+          address: (payload.replyTo ?? replyTo)!.email,
+        }
+      : undefined,
+      bcc:
+        shouldIncludeOwnerBcc(payload) && ownerEmail && ownerEmail !== payload.to
+          ? ownerEmail
+          : undefined,
       subject: payload.subject,
       text: payload.text,
-      html: payload.html,
+      html: payload.textOnly ? undefined : payload.html,
+      headers: payload.headers,
       attachments: payload.attachments?.map((file) => ({
         filename: file.filename,
         content: file.content,
@@ -400,6 +576,55 @@ export async function sendReservationConfirmation(input: ReservationEmailInput):
     subject,
     text,
     html,
+    tags: ["reserva", "cliente"],
+    includeOwnerBcc: false,
+  });
+}
+
+export async function sendOwnerNewReservationNotification(
+  input: ReservationEmailInput
+): Promise<EmailSendResult> {
+  const ownerEmail = process.env.OWNER_EMAIL?.trim();
+
+  if (!ownerEmail) {
+    return { sent: false, reason: "OWNER_EMAIL em falta" };
+  }
+
+  const configError = getEmailConfigError();
+  const { subject, text, html } = buildOwnerNewReservationEmailContent(input);
+
+  if (configError) {
+    console.log("[email:preview]", configError);
+    console.log(`Para: ${ownerEmail}`);
+    console.log(`Assunto: ${subject}`);
+    console.log(text);
+    return { sent: false, reason: configError };
+  }
+
+  const apiKey = process.env.BREVO_API_KEY?.trim();
+  const fallbackSender = parseFromAddress(getFromAddress());
+  const sender = apiKey ?
+    await resolveBrevoSender(apiKey)
+  : { email: fallbackSender.email, name: fallbackSender.name };
+  const textOnly = shouldUseTextOnlyOwnerEmail(ownerEmail, sender.email);
+  const guestReply =
+    input.reservation.guestEmail?.trim() ?
+      { name: input.reservation.guestName, email: input.reservation.guestEmail.trim() }
+    : undefined;
+
+  return sendEmail({
+    to: ownerEmail,
+    toName: "Casa do Penedo",
+    subject,
+    text,
+    html: textOnly ? undefined : html,
+    textOnly,
+    tags: ["reserva", "gestao"],
+    includeOwnerBcc: false,
+    replyTo: guestReply,
+    headers: {
+      "Auto-Submitted": "auto-generated",
+    },
   });
 }
 
@@ -435,6 +660,45 @@ export async function sendReservationFinalConfirmation(input: ReservationEmailIn
     text,
     html,
     attachments: regulamento ? [regulamento] : undefined,
+    tags: ["reserva", "cliente"],
+    includeOwnerBcc: false,
+  });
+}
+
+export async function sendWelcomeGuideEmail(input: ReservationEmailInput): Promise<EmailSendResult> {
+  const email = input.reservation.guestEmail;
+
+  if (!email) {
+    return { sent: false, reason: "Reserva sem email do hóspede" };
+  }
+
+  const configError = getEmailConfigError();
+  const guide = loadWelcomeGuideAttachment();
+
+  if (configError) {
+    const { subject, text } = buildWelcomeGuideEmailContent(input, Boolean(guide));
+    console.log("[email:preview]", configError);
+    console.log(`Para: ${email}`);
+    console.log(`Assunto: ${subject}`);
+    console.log(text);
+    return { sent: false, reason: configError };
+  }
+
+  const { subject, text, html } = buildWelcomeGuideEmailContent(input, Boolean(guide));
+
+  if (!guide) {
+    console.warn("[email:attachment] Guia de boas-vindas não encontrado — email enviado sem anexo");
+  }
+
+  return sendEmail({
+    to: email,
+    toName: input.reservation.guestName,
+    subject,
+    text,
+    html,
+    attachments: guide ? [guide] : undefined,
+    tags: ["reserva", "cliente", "boas-vindas"],
+    includeOwnerBcc: false,
   });
 }
 
@@ -463,6 +727,8 @@ export async function sendReservationCancellation(input: ReservationEmailInput):
     subject,
     text,
     html,
+    tags: ["reserva", "cliente"],
+    includeOwnerBcc: false,
   });
 }
 
