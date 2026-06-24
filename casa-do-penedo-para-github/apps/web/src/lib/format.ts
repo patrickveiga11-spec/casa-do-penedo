@@ -1,5 +1,5 @@
-export function formatMoney(value: number | string, currency = "EUR") {
-  return new Intl.NumberFormat("pt-PT", { style: "currency", currency }).format(Number(value));
+export function formatMoney(value: number | string, currency = "EUR", locale = "pt-PT") {
+  return new Intl.NumberFormat(locale, { style: "currency", currency }).format(Number(value));
 }
 
 export function dateKeyFromIso(value: string) {
@@ -7,9 +7,9 @@ export function dateKeyFromIso(value: string) {
   return match ? match[1] : value;
 }
 
-export function formatDate(value: string) {
+export function formatDate(value: string, locale = "pt-PT") {
   const [year, month, day] = dateKeyFromIso(value).split("-").map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString("pt-PT");
+  return new Date(year, month - 1, day).toLocaleDateString(locale);
 }
 
 export function isNightBooked(dayKey: string, checkIn: string, checkOut: string) {
@@ -50,12 +50,12 @@ export function startOfMonth(date = new Date()) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
-export function monthRange(date = new Date()) {
+export function monthRange(date = new Date(), locale = "pt-PT") {
   const start = startOfMonth(date);
   const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
   return {
     from: toDateKey(start),
     to: toDateKey(end),
-    label: start.toLocaleDateString("pt-PT", { month: "long", year: "numeric" }),
+    label: start.toLocaleDateString(locale, { month: "long", year: "numeric" }),
   };
 }

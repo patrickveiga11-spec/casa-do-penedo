@@ -2,6 +2,26 @@ import { useMemo } from "react";
 import type { Reservation } from "../api";
 import { dateKeyFromIso, isSelectedStayDay, parseDateKey, toDateKey } from "../lib/format";
 
+interface CalendarLabels {
+  weekdays: readonly string[];
+  today: string;
+  occupied: string;
+  yourDates: string;
+  occupiedLegend: string;
+  available: string;
+  ariaOccupied: string;
+}
+
+const defaultLabels: CalendarLabels = {
+  weekdays: ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"],
+  today: "Hoje",
+  occupied: "Ocupado",
+  yourDates: "As tuas datas",
+  occupiedLegend: "Ocupado (reserva ou indisponível)",
+  available: "Disponível",
+  ariaOccupied: "Ocupado",
+};
+
 interface CalendarViewProps {
   reservations: Reservation[];
   blocks: { startDate: string; endDate: string; reason: string | null }[];
@@ -12,6 +32,7 @@ interface CalendarViewProps {
   onNextMonth?: () => void;
   onToday?: () => void;
   todayLabel?: string;
+  labels?: CalendarLabels;
   /** Quando definido, o × só aparece nestas datas (página pública). */
   selectedRange?: { checkIn: string; checkOut: string };
   /** Destaca um intervalo no calendário (gestão). */
@@ -27,10 +48,13 @@ export function CalendarView({
   onPrevMonth,
   onNextMonth,
   onToday,
-  todayLabel = "Hoje",
+  todayLabel,
+  labels: labelsProp,
   selectedRange,
   focusRange,
 }: CalendarViewProps) {
+  const labels = labelsProp ?? defaultLabels;
+  const today = todayLabel ?? labels.today;
   const start = parseDateKey(from);
   const month = start.getMonth();
   const year = start.getFullYear();
@@ -102,7 +126,7 @@ export function CalendarView({
           <div className="calendar-nav-actions">
             {onToday && (
               <button type="button" className="btn secondary btn-small" onClick={onToday}>
-                {todayLabel}
+                {today}
               </button>
             )}
             {onNextMonth ? (
@@ -116,7 +140,7 @@ export function CalendarView({
         </div>
       )}
       <div className="calendar-grid">
-        {["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((label) => (
+        {labels.weekdays.map((label) => (
           <div key={label} className="calendar-weekday">
             {label}
           </div>
@@ -135,11 +159,11 @@ export function CalendarView({
               : Boolean(reservation);
           const occupiedLabel = reservation
             ? hideGuestNames
-              ? "Ocupado"
+              ? labels.occupied
               : reservation.guestName
             : block
               ? hideGuestNames
-                ? "Ocupado"
+                ? labels.occupied
                 : (block.reason ?? "Bloqueio manual")
               : null;
 
@@ -160,7 +184,7 @@ export function CalendarView({
               <div className="date-wrap">
                 <div className="date">{date.getDate()}</div>
                 {showMark && (
-                  <span className="date-mark" aria-label={hideGuestNames ? "Ocupado" : "Selecionado"}>
+                  <span className="date-mark" aria-label={hideGuestNames ? labels.ariaOccupied : "Selecionado"}>
                     ×
                   </span>
                 )}
@@ -173,18 +197,18 @@ export function CalendarView({
       <div className="calendar-legend">
         {selectedRange ? (
           <>
-            <span><i className="legend selected" /> As tuas datas</span>
-            <span><i className="legend booked" /> Ocupado</span>
+            <span><i className="legend selected" /> {labels.yourDates}</span>
+            <span><i className="legend booked" /> {labels.occupied}</span>
           </>
         ) : hideGuestNames ? (
-          <span><i className="legend booked" /> Ocupado (reserva ou indisponível)</span>
+          <span><i className="legend booked" /> {labels.occupiedLegend}</span>
         ) : (
           <>
             <span><i className="legend booked" /> Reserva</span>
             <span><i className="legend blocked" /> Bloqueio manual</span>
           </>
         )}
-        <span><i className="legend free" /> Disponível</span>
+        <span><i className="legend free" /> {labels.available}</span>
       </div>
     </div>
   );

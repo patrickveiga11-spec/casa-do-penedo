@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { api, type Property, type Reservation } from "../api";
 import { CalendarView } from "../components/CalendarView";
 import { DateField } from "../components/DateField";
+import { LanguageSelector } from "../components/LanguageSelector";
 import { LogoHeader } from "../components/LogoHeader";
 import { PricingInfo } from "../components/PricingInfo";
+import { useLanguage } from "../i18n/LanguageContext";
+import { interpolate } from "../i18n/translations";
 import { formatDate, formatMoney, monthRange, dateKeyFromIso, parseDateKey } from "../lib/format";
 
 interface Confirmation {
@@ -18,6 +21,7 @@ interface Confirmation {
 }
 
 export default function BookingPage() {
+  const { t, intlLocale, formatMessage } = useLanguage();
   const [property, setProperty] = useState<Property | null>(null);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [blocks, setBlocks] = useState<{ startDate: string; endDate: string; reason: string | null }[]>([]);
@@ -38,7 +42,7 @@ export default function BookingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
 
-  const range = monthRange(calendarMonth);
+  const range = monthRange(calendarMonth, intlLocale);
 
   async function loadCalendar(selectedProperty: Property) {
     const [calendar, ruleData] = await Promise.all([
@@ -61,20 +65,20 @@ export default function BookingPage() {
           await loadCalendar(selected);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Não foi possível carregar a página");
+        setError(err instanceof Error ? err.message : t.loadError);
       } finally {
         setLoading(false);
       }
     }
 
     bootstrap();
-  }, []);
+  }, [t.loadError]);
 
   useEffect(() => {
     if (property) {
       loadCalendar(property).catch(() => undefined);
     }
-  }, [calendarMonth, property?.id]);
+  }, [calendarMonth, property?.id, intlLocale]);
 
   useEffect(() => {
     if (!property || !form.checkIn || !form.checkOut) {
@@ -105,7 +109,7 @@ export default function BookingPage() {
 
     const phone = form.guestPhone.trim();
     if (phone.length < 4) {
-      setFormError("Indica um número de telemóvel (pode ser de qualquer país).");
+      setFormError(t.phoneRequired);
       setSubmitting(false);
       return;
     }
@@ -119,7 +123,7 @@ export default function BookingPage() {
       });
 
       if (!availability.available) {
-        setFormError("Essas datas já não estão disponíveis. Escolhe outras no calendário.");
+        setFormError(t.datesUnavailable);
         return;
       }
 
@@ -155,20 +159,26 @@ export default function BookingPage() {
       });
       await loadCalendar(property);
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Não foi possível concluir a reserva");
+      setFormError(err instanceof Error ? err.message : t.bookingFailed);
     } finally {
       setSubmitting(false);
     }
   }
 
   if (loading) {
-    return <div className="app-shell">A carregar…</div>;
+    return (
+      <div className="app-shell">
+        <LanguageSelector />
+        {t.loading}
+      </div>
+    );
   }
 
   if (error || !property) {
     return (
       <div className="app-shell">
-        <div className="alert">{error ?? "Reservas indisponíveis de momento."}</div>
+        <LanguageSelector />
+        <div className="alert">{error ?? t.unavailable}</div>
       </div>
     );
   }
@@ -176,43 +186,39 @@ export default function BookingPage() {
   if (confirmation) {
     return (
       <div className="app-shell">
-        <LogoHeader subtitle="Reserva recebida com sucesso" />
+        <LanguageSelector />
+        <LogoHeader subtitle={t.successSubtitle} />
         <section className="panel success-panel">
-          <h2>Obrigado, {confirmation.guestName}!</h2>
-          <p>A tua reserva provisória na Casa do Penedo foi registada.</p>
+          <h2>{formatMessage("thankYou", { name: confirmation.guestName })}</h2>
+          <p>{t.provisionalRegistered}</p>
           <div className="confirmation-grid">
             <div>
-              <span className="muted-text">Check-in</span>
-              <strong>{formatDate(confirmation.checkIn)}</strong>
+              <span className="muted-text">{t.checkIn}</span>
+              <strong>{formatDate(confirmation.checkIn, intlLocale)}</strong>
             </div>
             <div>
-              <span className="muted-text">Check-out</span>
-              <strong>{formatDate(confirmation.checkOut)}</strong>
+              <span className="muted-text">{t.checkOut}</span>
+              <strong>{formatDate(confirmation.checkOut, intlLocale)}</strong>
             </div>
             <div>
-              <span className="muted-text">Hóspedes</span>
+              <span className="muted-text">{t.guests}</span>
               <strong>{confirmation.guests}</strong>
             </div>
             <div>
-              <span className="muted-text">Total estimado</span>
-              <strong>{formatMoney(confirmation.totalPrice, confirmation.currency)}</strong>
+              <span className="muted-text">{t.estimatedTotalShort}</span>
+              <strong>{formatMoney(confirmation.totalPrice, confirmation.currency, intlLocale)}</strong>
             </div>
           </div>
           {confirmation.emailSent ? (
             <p className="muted-text">
-              Enviámos um email com os detalhes da reserva provisória para{" "}
-              <strong>{confirmation.guestEmail}</strong>.
+              {interpolate(t.emailSent, { email: confirmation.guestEmail })}
             </p>
           ) : (
-            <p className="muted-text">
-              Não foi possível enviar o email de reserva provisória. Entraremos em contacto em breve.
-            </p>
+            <p className="muted-text">{t.emailFailed}</p>
           )}
-          <p className="muted-text">
-            Receberás a confirmação final com o valor a pagar por email assim que validarmos a reserva.
-          </p>
+          <p className="muted-text">{t.finalConfirmationNote}</p>
           <button type="button" className="btn" onClick={() => setConfirmation(null)}>
-            Fazer nova reserva
+            {t.newBooking}
           </button>
         </section>
       </div>
@@ -221,16 +227,18 @@ export default function BookingPage() {
 
   return (
     <div className="app-shell">
-      <LogoHeader subtitle="Reserva directa — escolhe as datas e confirma a tua estadia" />
+      <LanguageSelector />
+      <LogoHeader subtitle={t.subtitle} />
 
       <div className="layout">
         <section className="panel">
-          <h2>Disponibilidade</h2>
+          <h2>{t.availability}</h2>
           <CalendarView
             reservations={reservations}
             blocks={blocks}
             from={range.from}
             hideGuestNames
+            labels={t.calendar}
             monthLabel={range.label}
             selectedRange={
               form.checkIn && form.checkOut
@@ -248,10 +256,10 @@ export default function BookingPage() {
 
         <section className="stack">
           <div className="panel">
-            <h2>Reservar</h2>
+            <h2>{t.book}</h2>
             <form className="stack" onSubmit={handleSubmit}>
               <div className="field">
-                <label htmlFor="guestName">Nome completo</label>
+                <label htmlFor="guestName">{t.fullName}</label>
                 <input
                   id="guestName"
                   value={form.guestName}
@@ -260,7 +268,7 @@ export default function BookingPage() {
                 />
               </div>
               <div className="field">
-                <label htmlFor="guestEmail">Email</label>
+                <label htmlFor="guestEmail">{t.email}</label>
                 <input
                   id="guestEmail"
                   type="email"
@@ -270,13 +278,13 @@ export default function BookingPage() {
                 />
               </div>
               <div className="field">
-                <label htmlFor="guestPhone">Telemóvel</label>
+                <label htmlFor="guestPhone">{t.phone}</label>
                 <input
                   id="guestPhone"
                   type="tel"
                   value={form.guestPhone}
                   onChange={(event) => setForm({ ...form, guestPhone: event.target.value })}
-                  placeholder="+351 912 345 678 ou outro país"
+                  placeholder={t.phonePlaceholder}
                   required
                   minLength={4}
                 />
@@ -284,21 +292,25 @@ export default function BookingPage() {
               <div className="field-row">
                 <DateField
                   id="checkIn"
-                  label="Check-in"
+                  label={t.checkIn}
                   value={form.checkIn}
                   onChange={(checkIn) => setForm({ ...form, checkIn })}
+                  openCalendarLabel={t.openCalendar}
+                  chooseDateLabel={t.chooseDate}
                   required
                 />
                 <DateField
                   id="checkOut"
-                  label="Check-out"
+                  label={t.checkOut}
                   value={form.checkOut}
                   onChange={(checkOut) => setForm({ ...form, checkOut })}
+                  openCalendarLabel={t.openCalendar}
+                  chooseDateLabel={t.chooseDate}
                   required
                 />
               </div>
               <div className="field">
-                <label htmlFor="guests">Hóspedes</label>
+                <label htmlFor="guests">{t.guests}</label>
                 <input
                   id="guests"
                   type="number"
@@ -311,15 +323,15 @@ export default function BookingPage() {
 
               {quoteTotal !== null && (
                 <div className="quote-box">
-                  Total estimado da estadia
-                  <strong>{formatMoney(quoteTotal, property.currency)}</strong>
+                  {t.estimatedTotal}
+                  <strong>{formatMoney(quoteTotal, property.currency, intlLocale)}</strong>
                 </div>
               )}
 
               {formError && <div className="alert">{formError}</div>}
 
               <button className="btn btn-large" type="submit" disabled={submitting}>
-                {submitting ? "A enviar…" : "Confirmar reserva"}
+                {submitting ? t.submitting : t.confirmBooking}
               </button>
             </form>
           </div>

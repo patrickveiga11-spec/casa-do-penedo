@@ -7,9 +7,19 @@ interface DateFieldProps {
   value: string;
   onChange: (value: string) => void;
   required?: boolean;
+  openCalendarLabel?: string;
+  chooseDateLabel?: string;
 }
 
-export function DateField({ id, label, value, onChange, required }: DateFieldProps) {
+export function DateField({
+  id,
+  label,
+  value,
+  onChange,
+  required,
+  openCalendarLabel = "Abrir calendário",
+  chooseDateLabel = "Escolher",
+}: DateFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   function openPicker() {
@@ -40,8 +50,8 @@ export function DateField({ id, label, value, onChange, required }: DateFieldPro
           type="button"
           className="date-field-btn"
           onClick={openPicker}
-          aria-label={`Abrir calendário: ${label}`}
-          title={`Escolher ${label.toLowerCase()}`}
+          aria-label={`${openCalendarLabel}: ${label}`}
+          title={`${chooseDateLabel} ${label.toLowerCase()}`}
         >
           <CalendarIcon />
         </button>

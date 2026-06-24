@@ -41,6 +41,36 @@ button {
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px;
+  position: relative;
+}
+
+.language-selector {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.language-selector button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  min-width: 42px;
+}
+
+.language-selector button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.language-selector button:not(.active):hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .hero {

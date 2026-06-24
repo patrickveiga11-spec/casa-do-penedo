@@ -1,0 +1,171 @@
+export type Locale = "pt" | "en" | "fr";
+
+export const LOCALES: { code: Locale; label: string }[] = [
+  { code: "pt", label: "PT" },
+  { code: "en", label: "EN" },
+  { code: "fr", label: "FR" },
+];
+
+export type TranslationKeys = (typeof translations)[Locale];
+
+export type CalendarLabels = TranslationKeys["calendar"];
+
+export const translations = {
+  pt: {
+    loading: "A carregar…",
+    loadError: "Não foi possível carregar a página",
+    unavailable: "Reservas indisponíveis de momento.",
+    subtitle: "Reserva directa — escolhe as datas e confirma a tua estadia",
+    availability: "Disponibilidade",
+    book: "Reservar",
+    fullName: "Nome completo",
+    email: "Email",
+    phone: "Telemóvel",
+    phonePlaceholder: "+351 912 345 678 ou outro país",
+    checkIn: "Check-in",
+    checkOut: "Check-out",
+    guests: "Hóspedes",
+    estimatedTotal: "Total estimado da estadia",
+    confirmBooking: "Confirmar reserva",
+    submitting: "A enviar…",
+    phoneRequired: "Indica um número de telemóvel (pode ser de qualquer país).",
+    datesUnavailable: "Essas datas já não estão disponíveis. Escolhe outras no calendário.",
+    bookingFailed: "Não foi possível concluir a reserva",
+    openCalendar: "Abrir calendário",
+    chooseDate: "Escolher",
+    successSubtitle: "Reserva recebida com sucesso",
+    thankYou: "Obrigado, {name}!",
+    provisionalRegistered: "A tua reserva provisória na Casa do Penedo foi registada.",
+    estimatedTotalShort: "Total estimado",
+    emailSent: "Enviámos um email com os detalhes da reserva provisória para {email}.",
+    emailFailed: "Não foi possível enviar o email de reserva provisória. Entraremos em contacto em breve.",
+    finalConfirmationNote:
+      "Receberás a confirmação final com o valor a pagar por email assim que validarmos a reserva.",
+    newBooking: "Fazer nova reserva",
+    calendar: {
+      weekdays: ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"],
+      today: "Hoje",
+      occupied: "Ocupado",
+      yourDates: "As tuas datas",
+      occupiedLegend: "Ocupado (reserva ou indisponível)",
+      available: "Disponível",
+      ariaOccupied: "Ocupado",
+    },
+    pricing: {
+      title: "Tarifas",
+      nightly: "Diária",
+      nightlyDetail: "Lotação 7 pessoas",
+      weekend: "Fim-de-semana (1 noite)",
+      weekendDetail: "Sexta→sábado ou sábado→domingo",
+      minNights: "Mínimo {n} noites",
+    },
+  },
+  en: {
+    loading: "Loading…",
+    loadError: "Could not load the page",
+    unavailable: "Bookings are unavailable at the moment.",
+    subtitle: "Direct booking — choose your dates and confirm your stay",
+    availability: "Availability",
+    book: "Book",
+    fullName: "Full name",
+    email: "Email",
+    phone: "Mobile phone",
+    phonePlaceholder: "+351 912 345 678 or other country",
+    checkIn: "Check-in",
+    checkOut: "Check-out",
+    guests: "Guests",
+    estimatedTotal: "Estimated stay total",
+    confirmBooking: "Confirm booking",
+    submitting: "Sending…",
+    phoneRequired: "Please enter a mobile phone number (any country).",
+    datesUnavailable: "Those dates are no longer available. Please choose others on the calendar.",
+    bookingFailed: "Could not complete the booking",
+    openCalendar: "Open calendar",
+    chooseDate: "Choose",
+    successSubtitle: "Booking received successfully",
+    thankYou: "Thank you, {name}!",
+    provisionalRegistered: "Your provisional booking at Casa do Penedo has been registered.",
+    estimatedTotalShort: "Estimated total",
+    emailSent: "We sent an email with your provisional booking details to {email}.",
+    emailFailed: "We could not send the provisional booking email. We will contact you shortly.",
+    finalConfirmationNote:
+      "You will receive the final confirmation with the amount to pay by email once we validate the booking.",
+    newBooking: "Make another booking",
+    calendar: {
+      weekdays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+      today: "Today",
+      occupied: "Occupied",
+      yourDates: "Your dates",
+      occupiedLegend: "Occupied (booking or unavailable)",
+      available: "Available",
+      ariaOccupied: "Occupied",
+    },
+    pricing: {
+      title: "Rates",
+      nightly: "Nightly rate",
+      nightlyDetail: "Up to 7 guests",
+      weekend: "Weekend (1 night)",
+      weekendDetail: "Fri→Sat or Sat→Sun",
+      minNights: "Minimum {n} nights",
+    },
+  },
+  fr: {
+    loading: "Chargement…",
+    loadError: "Impossible de charger la page",
+    unavailable: "Les réservations ne sont pas disponibles pour le moment.",
+    subtitle: "Réservation directe — choisissez vos dates et confirmez votre séjour",
+    availability: "Disponibilité",
+    book: "Réserver",
+    fullName: "Nom complet",
+    email: "Email",
+    phone: "Téléphone mobile",
+    phonePlaceholder: "+351 912 345 678 ou autre pays",
+    checkIn: "Arrivée",
+    checkOut: "Départ",
+    guests: "Voyageurs",
+    estimatedTotal: "Total estimé du séjour",
+    confirmBooking: "Confirmer la réservation",
+    submitting: "Envoi…",
+    phoneRequired: "Indiquez un numéro de mobile (tous pays).",
+    datesUnavailable: "Ces dates ne sont plus disponibles. Choisissez-en d'autres sur le calendrier.",
+    bookingFailed: "Impossible de finaliser la réservation",
+    openCalendar: "Ouvrir le calendrier",
+    chooseDate: "Choisir",
+    successSubtitle: "Réservation reçue avec succès",
+    thankYou: "Merci, {name} !",
+    provisionalRegistered: "Votre réservation provisoire à Casa do Penedo a été enregistrée.",
+    estimatedTotalShort: "Total estimé",
+    emailSent: "Nous avons envoyé un email avec les détails de votre réservation provisoire à {email}.",
+    emailFailed: "Impossible d'envoyer l'email de réservation provisoire. Nous vous contacterons bientôt.",
+    finalConfirmationNote:
+      "Vous recevrez la confirmation finale avec le montant à payer par email dès que nous validerons la réservation.",
+    newBooking: "Nouvelle réservation",
+    calendar: {
+      weekdays: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
+      today: "Aujourd'hui",
+      occupied: "Occupé",
+      yourDates: "Vos dates",
+      occupiedLegend: "Occupé (réservation ou indisponible)",
+      available: "Disponible",
+      ariaOccupied: "Occupé",
+    },
+    pricing: {
+      title: "Tarifs",
+      nightly: "Nuitée",
+      nightlyDetail: "Jusqu'à 7 personnes",
+      weekend: "Week-end (1 nuit)",
+      weekendDetail: "Ven→sam ou sam→dim",
+      minNights: "Minimum {n} nuits",
+    },
+  },
+} as const;
+
+export function localeToIntl(locale: Locale): string {
+  if (locale === "en") return "en-GB";
+  if (locale === "fr") return "fr-FR";
+  return "pt-PT";
+}
+
+export function interpolate(template: string, vars: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (_, key: string) => String(vars[key] ?? ""));
+}
