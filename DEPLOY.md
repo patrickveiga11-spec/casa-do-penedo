@@ -105,33 +105,21 @@ Isto cria a propriedade «Casa do Penedo» e as regras de preço.
 
 O PDF está em `apps/api/assets/guia-boas-vindas.pdf`.
 
-**Envio automático com GitHub Actions (grátis):**
+**Envio automático com Vercel Cron (grátis):**
 
-Todos os dias às ~9h (Lisboa), o GitHub chama a API e envia o guia (2 dias antes do check-in). Usa a mesma password da gestão — **não precisa de `CRON_SECRET`**.
+O projecto inclui `api/welcome-emails.js` e um cron diário no `vercel.json`. A Vercel chama esta função (~9h Lisboa) e esta chama a API no Render.
 
-### A) Criar o ficheiro do workflow (uma vez)
+### Variáveis na Vercel (Settings → Environment Variables)
 
-1. Abre https://github.com/patrickveiga11-spec/casa-do-penedo
-2. Clica **Add file** → **Create new file**
-3. Nome do ficheiro: `.github/workflows/welcome-emails.yml`
-4. Cola o conteúdo do ficheiro `welcome-emails.yml` que está no projecto (ou pergunta ao assistente)
-5. **Commit changes**
+| Variável | Valor |
+|----------|--------|
+| `CASA_API_URL` | `https://casa-do-penedo.onrender.com` |
+| `CASA_ADMIN_PASSWORD` | a mesma password da gestão (`/gestao`) |
+| `CRON_SECRET` | uma string aleatória longa (ex. `penedo-cron-2026-xK9m`) |
 
-### B) Segredos (uma vez)
+Depois do deploy, o cron fica activo automaticamente.
 
-1. GitHub → repositório → **Settings** → **Secrets and variables** → **Actions**
-2. **New repository secret:**
-   - `CASA_API_URL` = `https://casa-do-penedo.onrender.com`
-   - `CASA_ADMIN_PASSWORD` = a mesma password da gestão (`/gestao`)
-
-### C) Testar
-
-1. GitHub → **Actions** → workflow «Enviar guia de boas-vindas»
-2. **Run workflow** → confirma que fica verde
-
-Reservas validadas com **menos de 2 dias** de antecedência recebem o guia **logo na validação** (não esperam pelo cron).
-
-> **Nota:** Cron no Render custa ~1 €/mês. Para solução grátis, usa GitHub Actions (acima).
+Reservas validadas com **menos de 2 dias** de antecedência recebem o guia **logo na validação**.
 
 ---
 
