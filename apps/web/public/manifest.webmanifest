@@ -1,0 +1,17 @@
+{
+  "name": "Casa do Penedo",
+  "short_name": "Penedo",
+  "description": "Gestão e reservas — Casa do Penedo",
+  "start_url": "/gestao",
+  "display": "standalone",
+  "background_color": "#d8ead8",
+  "theme_color": "#2d6a4f",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
