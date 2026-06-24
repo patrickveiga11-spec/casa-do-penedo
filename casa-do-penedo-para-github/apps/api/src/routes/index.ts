@@ -8,7 +8,10 @@ import {
   sendReservationConfirmation,
   sendReservationFinalConfirmation,
 } from "../services/email.js";
-import { processWelcomeEmailAfterValidation } from "../services/welcome-email.js";
+import {
+  maybeRunDailyWelcomeEmails,
+  processWelcomeEmailAfterValidation,
+} from "../services/welcome-email.js";
 import { createBlockSchema, createPricingRuleSchema, createReservationSchema, quoteSchema, updateReservationSchema } from "../schemas.js";
 import { formatDate, monthBounds, nightsInRange, toDateOnly } from "../lib/dates.js";
 import { requireAdmin, verifyAdminToken } from "../lib/admin-auth.js";
@@ -525,6 +528,10 @@ export async function blockRoutes(app: FastifyInstance) {
 
 export async function dashboardRoutes(app: FastifyInstance) {
   app.get("/dashboard/kpis", { preHandler: requireAdmin }, async (request) => {
+    void maybeRunDailyWelcomeEmails().catch((error) => {
+      console.warn("[email:welcome-daily]", error);
+    });
+
     const { propertyId, month } = request.query as { propertyId?: string; month?: string };
 
     const now = new Date();

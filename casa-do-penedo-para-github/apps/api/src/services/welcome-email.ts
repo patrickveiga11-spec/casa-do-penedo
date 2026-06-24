@@ -93,3 +93,31 @@ export async function processWelcomeEmailAfterValidation(
 
   return trySendWelcomeGuideEmail(reservation);
 }
+
+let lastDailyWelcomeRunKey: string | null = null;
+
+function getLisbonHour(date = new Date()): number {
+  return Number(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/Lisbon",
+      hour: "numeric",
+      hour12: false,
+    }).format(date)
+  );
+}
+
+/** Envia guias pendentes quando abre a gestão após as 9h (sem precisar de cron no Render). */
+export async function maybeRunDailyWelcomeEmails(from = new Date()) {
+  const todayKey = getDateKeyInTimeZone(from);
+
+  if (getLisbonHour(from) < 9) {
+    return null;
+  }
+
+  if (lastDailyWelcomeRunKey === todayKey) {
+    return null;
+  }
+
+  lastDailyWelcomeRunKey = todayKey;
+  return processScheduledWelcomeEmails(from);
+}
