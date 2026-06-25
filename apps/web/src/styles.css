@@ -309,6 +309,30 @@ button {
   color: #166534;
 }
 
+.badge-access {
+  background: #e0f2fe;
+  color: #0c4a6e;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+}
+
+.detail-access-code {
+  grid-column: 1 / -1;
+}
+
+.access-code {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: #f0fdf4;
+  border: 2px solid #2d6a4f;
+  font-size: 1.5rem;
+  letter-spacing: 0.25em;
+  font-variant-numeric: tabular-nums;
+  color: #166534;
+}
+
 .reservation-price {
   text-align: right;
 }

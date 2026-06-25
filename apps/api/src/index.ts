@@ -12,6 +12,7 @@ import {
 import { authRoutes } from "./routes/auth.js";
 import { cronRoutes } from "./routes/cron.js";
 import { startWelcomeEmailCron } from "./lib/welcome-cron.js";
+import { backfillMissingAccessCodes } from "./services/access-code.js";
 
 loadEnv();
 
@@ -35,6 +36,11 @@ await app.register(cronRoutes);
 try {
   await app.listen({ port, host: "0.0.0.0" });
   startWelcomeEmailCron();
+  void backfillMissingAccessCodes().then((result) => {
+    if (result.updated > 0) {
+      app.log.info(result, "Códigos de acesso atribuídos a reservas validadas");
+    }
+  });
 } catch (error) {
   app.log.error(error);
   process.exit(1);

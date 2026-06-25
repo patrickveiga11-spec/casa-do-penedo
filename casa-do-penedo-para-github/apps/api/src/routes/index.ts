@@ -13,6 +13,7 @@ import {
   processWelcomeEmailAfterValidation,
   shouldSendWelcomeOnValidation,
 } from "../services/welcome-email.js";
+import { generateUniqueAccessCode } from "../services/access-code.js";
 import { createBlockSchema, createPricingRuleSchema, createReservationSchema, quoteSchema, updateReservationSchema } from "../schemas.js";
 import { formatDate, monthBounds, nightsInRange, toDateOnly } from "../lib/dates.js";
 import { requireAdmin, verifyAdminToken } from "../lib/admin-auth.js";
@@ -287,9 +288,18 @@ export async function reservationRoutes(app: FastifyInstance) {
 
     const includeWelcomeGuide = shouldSendWelcomeOnValidation(existing.checkIn);
 
+    const accessCode = await generateUniqueAccessCode(
+      existing.propertyId,
+      existing.checkIn,
+      existing.checkOut,
+      existing.id
+    );
+
+    const reservationForEmail = { ...existing, accessCode };
+
     const emailResult = await sendReservationFinalConfirmation(
       {
-        reservation: existing,
+        reservation: reservationForEmail,
         property: existing.property,
       },
       { includeWelcomeGuide }
@@ -307,6 +317,7 @@ export async function reservationRoutes(app: FastifyInstance) {
       data: {
         validatedAt: new Date(),
         status: "CONFIRMED",
+        accessCode,
         ...(emailResult.welcomeGuideAttached ? { welcomeEmailSentAt: new Date() } : {}),
       },
       include: { property: true },

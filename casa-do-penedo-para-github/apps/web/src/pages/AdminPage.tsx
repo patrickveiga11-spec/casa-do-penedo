@@ -245,8 +245,9 @@ export default function AdminPage() {
     setDetailNotice(null);
 
     try {
-      await api.validateReservation(reservation.id);
-      setDetailNotice(`Reserva validada. Email enviado para ${reservation.guestEmail}.`);
+      const result = await api.validateReservation(reservation.id);
+      const codeNote = result.accessCode ? ` Código de acesso: ${result.accessCode}.` : "";
+      setDetailNotice(`Reserva validada. Email enviado para ${reservation.guestEmail}.${codeNote}`);
       await loadAll(property);
     } catch (err) {
       setDetailError(err instanceof Error ? err.message : "Erro ao validar reserva");
@@ -594,6 +595,11 @@ export default function AdminPage() {
                         <span className={`badge ${reservation.validatedAt ? "badge-ok" : "badge-pending"}`}>
                           {reservation.validatedAt ? "Validada" : "Pendente"}
                         </span>
+                        {reservation.accessCode && (
+                          <span className="badge badge-access" title="Código de acesso">
+                            PIN {reservation.accessCode}
+                          </span>
+                        )}
                       </div>
                       <button
                         type="button"
@@ -673,6 +679,12 @@ export default function AdminPage() {
                           <span className="muted-text">Estado</span>
                           <strong>{reservation.validatedAt ? "Validada" : "Pendente de validação"}</strong>
                         </div>
+                        {reservation.accessCode && (
+                          <div className="detail-access-code">
+                            <span className="muted-text">Código de acesso</span>
+                            <strong className="access-code">{reservation.accessCode}</strong>
+                          </div>
+                        )}
                       </div>
 
                       <div className="field">

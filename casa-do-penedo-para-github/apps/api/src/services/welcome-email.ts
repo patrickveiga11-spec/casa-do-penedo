@@ -2,6 +2,7 @@ import type { Property, Reservation, ReservationStatus } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { daysUntilCheckIn, getDateKeyInTimeZone, addDaysToDateKey, toDateOnly } from "../lib/dates.js";
 import { sendWelcomeGuideEmail } from "./email.js";
+import { ensureReservationAccessCode } from "./access-code.js";
 
 const WELCOME_DAYS_BEFORE = 2;
 const ACTIVE_STATUSES: ReservationStatus[] = ["CONFIRMED", "CHECKED_IN"];
@@ -30,8 +31,11 @@ export async function trySendWelcomeGuideEmail(
     return { sent: false, reason: "Reserva não elegível para guia de boas-vindas" };
   }
 
+  const accessCode = await ensureReservationAccessCode(reservation);
+  const reservationWithCode = { ...reservation, accessCode };
+
   const emailResult = await sendWelcomeGuideEmail({
-    reservation,
+    reservation: reservationWithCode,
     property: reservation.property,
   });
 

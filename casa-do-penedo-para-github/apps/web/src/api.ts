@@ -139,6 +139,7 @@ export interface Reservation {
   status: string;
   notes?: string | null;
   validatedAt?: string | null;
+  accessCode?: string | null;
   emailSent?: boolean;
   subtotalBeforeDiscount?: number;
 }

@@ -193,6 +193,28 @@ function buildEmailContent({ reservation, property }: ReservationEmailInput) {
   return { subject, text, html };
 }
 
+function buildAccessCodeEmailContent(accessCode: string | null | undefined) {
+  if (!accessCode) {
+    return { textBlock: "", htmlBlock: "" };
+  }
+
+  const textBlock = [
+    "",
+    `Código de acesso: ${accessCode}`,
+    "Usa este código de 4 dígitos no controlo de acessos à entrada da casa.",
+  ].join("\n");
+
+  const htmlBlock = `
+    <div style="margin: 24px 0; padding: 16px 20px; background: #f0fdf4; border: 2px solid #2d6a4f; border-radius: 8px; text-align: center;">
+      <p style="margin: 0 0 8px; color: #6b7280; font-size: 0.9em;">Código de acesso</p>
+      <p style="margin: 0; font-size: 2em; font-weight: bold; letter-spacing: 0.25em; color: #2d6a4f;">${accessCode}</p>
+      <p style="margin: 8px 0 0; color: #6b7280; font-size: 0.85em;">Programa este PIN no controlo de acessos à entrada.</p>
+    </div>
+  `;
+
+  return { textBlock, htmlBlock };
+}
+
 function buildFinalConfirmationEmailContent(
   { reservation, property }: ReservationEmailInput,
   includeRegulamentoNote = false,
@@ -206,6 +228,9 @@ function buildFinalConfirmationEmailContent(
     discountPercent > 0 ? `Desconto aplicado: ${discountPercent}%` : "";
 
   const subject = `Confirmação final — ${property.name}`;
+  const { textBlock: accessCodeText, htmlBlock: accessCodeHtml } = buildAccessCodeEmailContent(
+    includeGuideNote ? reservation.accessCode : null
+  );
 
   const text = [
     `Olá ${reservation.guestName},`,
@@ -224,6 +249,7 @@ function buildFinalConfirmationEmailContent(
     includeGuideNote
       ? "Em anexo enviamos também o guia de boas-vindas com informações úteis para a tua chegada."
       : "",
+    accessCodeText,
     "",
     "Entraremos em contacto em breve para acertar o pagamento e os detalhes da estadia.",
     "",
@@ -252,6 +278,7 @@ function buildFinalConfirmationEmailContent(
       </table>
       ${includeRegulamentoNote ? "<p>Em anexo enviamos o <strong>regulamento interno</strong> da Casa do Penedo.</p>" : ""}
       ${includeGuideNote ? "<p>Em anexo enviamos também o <strong>guia de boas-vindas</strong> com informações úteis para a tua chegada.</p>" : ""}
+      ${accessCodeHtml}
       <p>Entraremos em contacto em breve para acertar o pagamento e os detalhes da estadia.</p>
       <p style="color: #6b7280; margin-top: 32px;">Casa do Penedo</p>
     </div>
@@ -268,6 +295,9 @@ function buildWelcomeGuideEmailContent(
   const checkOut = formatDate(reservation.checkOut);
 
   const subject = `Bem-vindo à ${property.name}`;
+  const { textBlock: accessCodeText, htmlBlock: accessCodeHtml } = buildAccessCodeEmailContent(
+    reservation.accessCode
+  );
 
   const text = [
     `Olá ${reservation.guestName},`,
@@ -276,6 +306,7 @@ function buildWelcomeGuideEmailContent(
     "",
     `Check-in: ${checkIn}`,
     `Check-out: ${checkOut}`,
+    accessCodeText,
     "",
     includeGuideNote
       ? "Em anexo enviamos o guia de boas-vindas com informações úteis para a tua chegada e estadia."
@@ -297,6 +328,7 @@ function buildWelcomeGuideEmailContent(
         <tr><td style="padding: 8px 0; color: #6b7280;">Check-in</td><td style="padding: 8px 0;"><strong>${checkIn}</strong></td></tr>
         <tr><td style="padding: 8px 0; color: #6b7280;">Check-out</td><td style="padding: 8px 0;"><strong>${checkOut}</strong></td></tr>
       </table>
+      ${accessCodeHtml}
       ${includeGuideNote ? "<p>Em anexo enviamos o <strong>guia de boas-vindas</strong> com informações úteis para a tua chegada e estadia.</p>" : ""}
       <p>Estamos à disposição para qualquer dúvida. Boa viagem!</p>
       <p style="color: #6b7280; margin-top: 32px;">Casa do Penedo</p>
