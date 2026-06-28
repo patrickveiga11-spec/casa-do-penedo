@@ -429,7 +429,7 @@ function buildOwnerNewReservationEmailContent({ reservation, property }: Reserva
 }
 
 function getFromAddress() {
-  return process.env.SMTP_FROM ?? "Casa do Penedo <casa_do_penedo@outlook.com>";
+  return process.env.SMTP_FROM ?? "Casa do Penedo <casa_do_penedo@casadopenedo.pt>";
 }
 
 function shouldIncludeOwnerBcc(payload: EmailPayload) {

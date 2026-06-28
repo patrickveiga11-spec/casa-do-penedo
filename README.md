@@ -45,14 +45,15 @@ SMTP_HOST=smtp-relay.brevo.com
 SMTP_PORT=587
 SMTP_USER=email-da-tua-conta-brevo@exemplo.com
 SMTP_PASS=xsmtpsib-xxxxxxxx
-SMTP_FROM="Casa do Penedo <casa_do_penedo@outlook.com>"
-OWNER_EMAIL=casa_do_penedo@outlook.com
+SMTP_FROM="Casa do Penedo <casa_do_penedo@casadopenedo.pt>"
+OWNER_EMAIL=casa_do_penedo@casadopenedo.pt
+BREVO_SENDER_EMAIL=casa_do_penedo@casadopenedo.pt
 ```
 
 ### 3. Testar
 
 ```bash
-npm run test:email -w @casa/api -- casa_do_penedo@outlook.com
+npm run test:email -w @casa/api -- casa_do_penedo@casadopenedo.pt
 ```
 
 Reinicia a API (`npm run dev`) após alterar o `.env`.

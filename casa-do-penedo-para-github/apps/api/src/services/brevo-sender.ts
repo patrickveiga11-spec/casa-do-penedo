@@ -94,7 +94,7 @@ export async function resolveBrevoSender(apiKey: string): Promise<{ id?: number;
     return { id: preferred.id, name: preferred.name || "Casa do Penedo", email: preferred.email };
   }
 
-  return { name: "Casa do Penedo", email: "casa_do_penedo@outlook.com" };
+  return { name: "Casa do Penedo", email: "casa_do_penedo@casadopenedo.pt" };
 }
 
 export function shouldUseTextOnlyOwnerEmail(ownerEmail: string, senderEmail: string): boolean {

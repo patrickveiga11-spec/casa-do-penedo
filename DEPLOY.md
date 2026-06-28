@@ -53,8 +53,9 @@ Substitui `TEU-UTILIZADOR` pelo teu nome de utilizador GitHub.
 | `DATABASE_URL` | connection string da Neon |
 | `ADMIN_PASSWORD` | password forte para `/gestao` |
 | `BREVO_API_KEY` | a tua chave Brevo (`xkeysib-...`) |
-| `SMTP_FROM` | `Casa do Penedo <casa_do_penedo@outlook.com>` |
-| `OWNER_EMAIL` | `casa_do_penedo@outlook.com` |
+| `SMTP_FROM` | `Casa do Penedo <casa_do_penedo@casadopenedo.pt>` |
+| `OWNER_EMAIL` | `casa_do_penedo@casadopenedo.pt` |
+| `BREVO_SENDER_EMAIL` | `casa_do_penedo@casadopenedo.pt` (opcional; reforça o remetente) |
 | `NODE_ENV` | `production` (só depois do 1.º deploy bem-sucedido, ou usa o Build Command abaixo) |
 
 **Nota:** com `NODE_ENV=production`, o Render não instala TypeScript e o build falha. Usa sempre:
@@ -97,7 +98,13 @@ Isto cria a propriedade «Casa do Penedo» e as regras de preço.
 ## Passo 5 — Brevo (emails em produção)
 
 1. Em https://app.brevo.com/security/authorised_ips — desactiva restrição de IP **ou** autoriza IPs da Render (para testes, desactivar é mais simples).
-2. Confirma que `BREVO_API_KEY` está no Render.
+2. **Domínio próprio (recomendado):** em Brevo → **Senders, Domains & Dedicated IPs** → **Domains** → adiciona `casadopenedo.pt` e copia os registos DNS (SPF, DKIM e, se possível, DMARC) para o painel do teu registrador de domínio. Espera a validação ficar verde.
+3. Adiciona o remetente `casa_do_penedo@casadopenedo.pt` em **Senders** e confirma-o (email de verificação ou domínio já validado).
+4. Confirma que `BREVO_API_KEY` está no Render e actualiza também:
+   - `SMTP_FROM` = `Casa do Penedo <casa_do_penedo@casadopenedo.pt>`
+   - `OWNER_EMAIL` = `casa_do_penedo@casadopenedo.pt`
+   - `BREVO_SENDER_EMAIL` = `casa_do_penedo@casadopenedo.pt`
+5. Reinicia o serviço no Render após alterar as variáveis.
 
 ---
 
