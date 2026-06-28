@@ -247,7 +247,13 @@ export default function AdminPage() {
     try {
       const result = await api.validateReservation(reservation.id);
       const codeNote = result.accessCode ? ` Código de acesso: ${result.accessCode}.` : "";
-      setDetailNotice(`Reserva validada. Enviámos email de confirmação ao hóspede.${codeNote}`);
+      const welcomeNote =
+        result.welcomeEmailSent === false && result.welcomeEmailNote
+          ? ` (${result.welcomeEmailNote})`
+          : result.welcomeEmailSent
+            ? " Guia de boas-vindas enviado."
+            : "";
+      setDetailNotice(`Reserva validada. Enviámos email de confirmação ao hóspede.${codeNote}${welcomeNote}`);
       await loadAll(property);
     } catch (err) {
       setDetailError(err instanceof Error ? err.message : "Erro ao validar reserva");
@@ -366,7 +372,7 @@ export default function AdminPage() {
         setDeleteNotice(
           result.emailSent
             ? "Reserva anulada. Enviámos email de anulação ao hóspede."
-            : "Reserva anulada, mas não foi possível enviar email de anulação ao hóspede."
+            : `Reserva anulada, mas não foi possível enviar email de anulação${result.emailError ? `: ${result.emailError}` : "."}`
         );
       } else {
         setDeleteNotice("Reserva anulada (sem email do cliente).");

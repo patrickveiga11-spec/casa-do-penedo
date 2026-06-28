@@ -75,20 +75,44 @@ async function fetchBrevoSenders(apiKey: string): Promise<BrevoSenderRecord[]> {
   return cachedSenders;
 }
 
-export async function resolveBrevoSender(apiKey: string): Promise<{ id?: number; name: string; email: string }> {
+function parseConfiguredSender(): { name: string; email: string } | null {
   const configured = process.env.BREVO_SENDER_EMAIL?.trim() || process.env.SMTP_FROM?.trim();
-  if (configured) {
-    const match = configured.match(/^(.+?)\s*<([^>]+)>$/);
-    if (match) {
-      return { name: match[1].trim().replace(/^"|"$/g, ""), email: match[2].trim() };
-    }
-
-    if (configured.includes("@")) {
-      return { name: "Casa do Penedo", email: configured };
-    }
+  if (!configured) {
+    return null;
   }
 
+  const match = configured.match(/^(.+?)\s*<([^>]+)>$/);
+  if (match) {
+    return {
+      name: match[1].trim().replace(/^"|"$/g, ""),
+      email: match[2].trim(),
+    };
+  }
+
+  if (configured.includes("@")) {
+    return { name: "Casa do Penedo", email: configured };
+  }
+
+  return null;
+}
+
+export async function resolveBrevoSender(apiKey: string): Promise<{ id?: number; name: string; email: string }> {
+  const configured = parseConfiguredSender();
   const senders = await fetchBrevoSenders(apiKey);
+
+  if (configured) {
+    const active = senders.find((sender) => sender.email.toLowerCase() === configured.email.toLowerCase());
+    if (active) {
+      return {
+        id: active.id,
+        name: active.name || configured.name,
+        email: active.email,
+      };
+    }
+
+    return configured;
+  }
+
   const preferred = senders[0];
   if (preferred) {
     return { id: preferred.id, name: preferred.name || "Casa do Penedo", email: preferred.email };

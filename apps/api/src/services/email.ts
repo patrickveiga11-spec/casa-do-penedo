@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import type { Property, Reservation } from "@prisma/client";
 import {
   isFreeEmailAddress,
+  isMicrosoftMailbox,
   resolveBrevoSender,
   shouldUseTextOnlyOwnerEmail,
 } from "./brevo-sender.js";
@@ -309,7 +310,7 @@ function buildWelcomeGuideEmailContent(
     accessCodeText,
     "",
     includeGuideNote
-      ? "Em anexo enviamos o guia de boas-vindas com informações úteis para a tua chegada e estadia."
+      ? "Em anexo enviamos o guia de boas-vindas e o regulamento interno da Casa do Penedo."
       : "",
     "",
     "Estamos à disposição para qualquer dúvida. Boa viagem!",
@@ -329,7 +330,7 @@ function buildWelcomeGuideEmailContent(
         <tr><td style="padding: 8px 0; color: #6b7280;">Check-out</td><td style="padding: 8px 0;"><strong>${checkOut}</strong></td></tr>
       </table>
       ${accessCodeHtml}
-      ${includeGuideNote ? "<p>Em anexo enviamos o <strong>guia de boas-vindas</strong> com informações úteis para a tua chegada e estadia.</p>" : ""}
+      ${includeGuideNote ? "<p>Em anexo enviamos o <strong>guia de boas-vindas</strong> e o <strong>regulamento interno</strong>.</p>" : ""}
       <p>Estamos à disposição para qualquer dúvida. Boa viagem!</p>
       <p style="color: #6b7280; margin-top: 32px;">Casa do Penedo</p>
     </div>
@@ -738,9 +739,11 @@ export async function sendWelcomeGuideEmail(input: ReservationEmailInput): Promi
 
   const configError = getEmailConfigError();
   const guide = loadWelcomeGuideAttachment();
+  const regulamento = loadRegulamentoAttachment();
+  const hasAttachments = Boolean(guide || regulamento);
 
   if (configError) {
-    const { subject, text } = buildWelcomeGuideEmailContent(input, Boolean(guide));
+    const { subject, text } = buildWelcomeGuideEmailContent(input, hasAttachments);
     console.log("[email:preview]", configError);
     console.log(`Para: ${email}`);
     console.log(`Assunto: ${subject}`);
@@ -748,11 +751,19 @@ export async function sendWelcomeGuideEmail(input: ReservationEmailInput): Promi
     return { sent: false, reason: configError };
   }
 
-  const { subject, text, html } = buildWelcomeGuideEmailContent(input, Boolean(guide));
+  const { subject, text, html } = buildWelcomeGuideEmailContent(input, hasAttachments);
 
   if (!guide) {
-    console.warn("[email:attachment] Guia de boas-vindas não encontrado — email enviado sem anexo");
+    console.warn("[email:attachment] Guia de boas-vindas não encontrado — email enviado sem guia");
   }
+
+  if (!regulamento) {
+    console.warn("[email:attachment] Regulamento interno não encontrado — email enviado sem regulamento");
+  }
+
+  const attachments = [guide, regulamento].filter(
+    (attachment): attachment is EmailAttachment => attachment !== null
+  );
 
   return sendEmail({
     to: email,
@@ -760,7 +771,7 @@ export async function sendWelcomeGuideEmail(input: ReservationEmailInput): Promi
     subject,
     text,
     html,
-    attachments: guide ? [guide] : undefined,
+    attachments: attachments.length > 0 ? attachments : undefined,
     tags: ["reserva", "cliente", "boas-vindas"],
     includeOwnerBcc: false,
   });
@@ -784,14 +795,16 @@ export async function sendReservationCancellation(input: ReservationEmailInput):
   }
 
   const { subject, text, html } = buildCancellationEmailContent(input);
+  const textOnly = isMicrosoftMailbox(email);
 
   return sendEmail({
     to: email,
     toName: input.reservation.guestName,
     subject,
     text,
-    html,
-    tags: ["reserva", "cliente"],
+    html: textOnly ? undefined : html,
+    textOnly,
+    tags: ["reserva", "cliente", "anulacao"],
     includeOwnerBcc: false,
   });
 }
