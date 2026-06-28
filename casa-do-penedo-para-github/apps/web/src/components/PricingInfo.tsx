@@ -27,9 +27,9 @@ export function PricingInfo({
         </div>
         <div className="list-item">
           <div>
-            <strong>{publicPage ? p!.weekend : "Fim-de-semana (1 noite)"}</strong>
+            <strong>{publicPage ? p!.singleNight : "Estadia de 1 noite"}</strong>
             <div className="muted-text">
-              {publicPage ? p!.weekendDetail : "Sexta→sábado ou sábado→domingo"}
+              {publicPage ? p!.singleNightDetail : "Qualquer dia da semana"}
             </div>
           </div>
           <span className="badge">200€</span>
