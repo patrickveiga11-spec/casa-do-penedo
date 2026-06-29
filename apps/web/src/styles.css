@@ -52,6 +52,9 @@ button {
 }
 
 .language-selector button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--muted);
@@ -60,6 +63,15 @@ button {
   font-size: 0.85rem;
   font-weight: 600;
   min-width: 42px;
+}
+
+.language-selector .language-flag {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.language-selector .language-code {
+  line-height: 1;
 }
 
 .language-selector button.active {

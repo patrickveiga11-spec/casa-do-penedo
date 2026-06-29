@@ -1,9 +1,10 @@
-export type Locale = "pt" | "en" | "fr";
+export type Locale = "pt" | "en" | "fr" | "es";
 
-export const LOCALES: { code: Locale; label: string }[] = [
-  { code: "pt", label: "PT" },
-  { code: "en", label: "EN" },
-  { code: "fr", label: "FR" },
+export const LOCALES: { code: Locale; label: string; flag: string }[] = [
+  { code: "pt", label: "PT", flag: "🇵🇹" },
+  { code: "en", label: "EN", flag: "🇬🇧" },
+  { code: "fr", label: "FR", flag: "🇫🇷" },
+  { code: "es", label: "ES", flag: "🇪🇸" },
 ];
 
 export type TranslationKeys = (typeof translations)[Locale];
@@ -158,11 +159,61 @@ export const translations = {
       minNights: "Minimum {n} nuits",
     },
   },
+  es: {
+    loading: "Cargando…",
+    loadError: "No se pudo cargar la página",
+    unavailable: "Las reservas no están disponibles en este momento.",
+    subtitle: "Reserva directa — elige las fechas y confirma tu estancia",
+    availability: "Disponibilidad",
+    book: "Reservar",
+    fullName: "Nombre completo",
+    email: "Email",
+    phone: "Teléfono móvil",
+    phonePlaceholder: "+351 912 345 678 u otro país",
+    checkIn: "Entrada",
+    checkOut: "Salida",
+    guests: "Huéspedes",
+    estimatedTotal: "Total estimado de la estancia",
+    confirmBooking: "Confirmar reserva",
+    submitting: "Enviando…",
+    phoneRequired: "Indica un número de móvil (puede ser de cualquier país).",
+    datesUnavailable: "Esas fechas ya no están disponibles. Elige otras en el calendario.",
+    bookingFailed: "No se pudo completar la reserva",
+    openCalendar: "Abrir calendario",
+    chooseDate: "Elegir",
+    successSubtitle: "Reserva recibida con éxito",
+    thankYou: "¡Gracias, {name}!",
+    provisionalRegistered: "Tu reserva provisional en Casa do Penedo ha sido registrada.",
+    estimatedTotalShort: "Total estimado",
+    emailSent: "Hemos enviado un email con los detalles de la reserva provisional a {email}.",
+    emailFailed: "No pudimos enviar el email de reserva provisional. Nos pondremos en contacto pronto.",
+    finalConfirmationNote:
+      "Recibirás la confirmación final con el importe a pagar por email en cuanto validemos la reserva.",
+    newBooking: "Hacer otra reserva",
+    calendar: {
+      weekdays: ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
+      today: "Hoy",
+      occupied: "Ocupado",
+      yourDates: "Tus fechas",
+      occupiedLegend: "Ocupado (reserva o no disponible)",
+      available: "Disponible",
+      ariaOccupied: "Ocupado",
+    },
+    pricing: {
+      title: "Tarifas",
+      nightly: "Noche",
+      nightlyDetail: "Hasta 7 personas",
+      singleNight: "Estancia de 1 noche",
+      singleNightDetail: "Cualquier día de la semana",
+      minNights: "Mínimo {n} noches",
+    },
+  },
 } as const;
 
 export function localeToIntl(locale: Locale): string {
   if (locale === "en") return "en-GB";
   if (locale === "fr") return "fr-FR";
+  if (locale === "es") return "es-ES";
   return "pt-PT";
 }
 

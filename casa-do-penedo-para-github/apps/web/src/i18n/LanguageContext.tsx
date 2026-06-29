@@ -14,7 +14,7 @@ type LanguageContextValue = {
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 function parseLocale(value: string | null): Locale | null {
-  if (value === "pt" || value === "en" || value === "fr") {
+  if (value === "pt" || value === "en" || value === "fr" || value === "es") {
     return value;
   }
   return null;
@@ -36,6 +36,7 @@ function detectInitialLocale(): Locale {
   }
 
   const browser = navigator.language.toLowerCase();
+  if (browser.startsWith("es")) return "es";
   if (browser.startsWith("fr")) return "fr";
   if (browser.startsWith("en")) return "en";
   return "pt";
