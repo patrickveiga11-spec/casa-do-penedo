@@ -92,7 +92,13 @@ export const api = {
       body: JSON.stringify(data),
     }),
   validateReservation: (id: string) =>
-    request<Reservation>(`/reservations/${id}/validate`, { method: "POST", admin: true }),
+    request<
+      Reservation & {
+        emailSent?: boolean;
+        welcomeEmailSent?: boolean;
+        welcomeEmailNote?: string;
+      }
+    >(`/reservations/${id}/validate`, { method: "POST", admin: true }),
   checkAvailability: (data: QuoteInput) =>
     request<AvailabilityResult>("/reservations/check-availability", {
       method: "POST",
