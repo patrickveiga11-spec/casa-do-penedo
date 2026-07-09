@@ -6,3 +6,5 @@ dist
 .DS_Store
 .data
 *.tsbuildinfo
+apps/web/public/guia-boas-vindas.pdf
+apps/web/public/regulamento-interno.pdf
