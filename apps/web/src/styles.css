@@ -850,7 +850,8 @@ button {
   border: 1px dashed var(--border);
 }
 
-.welcome-guide-qr svg {
+.welcome-guide-qr svg,
+.welcome-guide-qr .qr-image {
   display: block;
 }
 
@@ -911,4 +912,8 @@ button {
 .regulations-footer-qr {
   flex-shrink: 0;
   opacity: 0.85;
+}
+
+.regulations-footer-qr .qr-image {
+  display: block;
 }

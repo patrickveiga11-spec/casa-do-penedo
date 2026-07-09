@@ -1,4 +1,4 @@
-import QRCode from "react-qr-code";
+import { QrImage } from "./QrImage";
 import { useLanguage } from "../i18n/LanguageContext";
 
 const GUIDE_PATH = "/guia-boas-vindas.pdf";
@@ -42,8 +42,8 @@ export function WelcomeGuideCard() {
             {t.welcomeGuide.openPdf}
           </a>
         </div>
-        <div className="welcome-guide-qr" aria-label={t.welcomeGuide.qrLabel}>
-          <QRCode value={guideUrl} size={120} bgColor="#ffffff" fgColor="#1f2933" />
+        <div className="welcome-guide-qr">
+          <QrImage value={guideUrl} size={120} label={t.welcomeGuide.qrLabel} />
           <span className="muted-text">{t.welcomeGuide.scanHint}</span>
         </div>
       </div>

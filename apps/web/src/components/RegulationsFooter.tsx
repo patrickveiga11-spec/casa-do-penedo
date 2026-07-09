@@ -1,4 +1,4 @@
-import QRCode from "react-qr-code";
+import { QrImage } from "./QrImage";
 import { useLanguage } from "../i18n/LanguageContext";
 
 const RULES_PATH = "/regulamento-interno.pdf";
@@ -39,7 +39,7 @@ export function RegulationsFooter() {
         </div>
       </div>
       <div className="regulations-footer-qr" aria-hidden="true">
-        <QRCode value={rulesUrl} size={56} bgColor="transparent" fgColor="#4b5563" />
+        <QrImage value={rulesUrl} size={56} label={t.regulations.title} />
       </div>
     </footer>
   );
