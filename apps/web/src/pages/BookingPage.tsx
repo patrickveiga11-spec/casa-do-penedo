@@ -5,6 +5,8 @@ import { DateField } from "../components/DateField";
 import { LanguageSelector } from "../components/LanguageSelector";
 import { LogoHeader } from "../components/LogoHeader";
 import { PricingInfo } from "../components/PricingInfo";
+import { RegulationsFooter } from "../components/RegulationsFooter";
+import { WelcomeGuideCard } from "../components/WelcomeGuideCard";
 import { useLanguage } from "../i18n/LanguageContext";
 import { interpolate } from "../i18n/translations";
 import { formatDate, formatMoney, monthRange, dateKeyFromIso, parseDateKey } from "../lib/format";
@@ -339,6 +341,9 @@ export default function BookingPage() {
           <PricingInfo rules={pricingRules} publicPage />
         </section>
       </div>
+
+      <WelcomeGuideCard />
+      <RegulationsFooter />
     </div>
   );
 }

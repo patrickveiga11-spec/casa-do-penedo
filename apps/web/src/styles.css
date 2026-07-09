@@ -781,3 +781,134 @@ button {
   background: #dbeafe;
   color: #1e40af;
 }
+
+.welcome-guide-card {
+  margin-top: 24px;
+}
+
+.welcome-guide-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.welcome-guide-copy {
+  flex: 1 1 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.welcome-guide-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.welcome-guide-heading h2 {
+  margin: 0 0 4px;
+}
+
+.welcome-guide-heading p {
+  margin: 0;
+}
+
+.welcome-guide-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.welcome-guide-link {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.welcome-guide-link:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.welcome-guide-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px dashed var(--border);
+}
+
+.welcome-guide-qr svg {
+  display: block;
+}
+
+.welcome-guide-qr .muted-text {
+  font-size: 0.8rem;
+  text-align: center;
+  max-width: 140px;
+}
+
+.regulations-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.regulations-footer-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.regulations-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.regulations-footer-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  font-size: 0.85rem;
+}
+
+.regulations-footer-label {
+  color: var(--muted);
+}
+
+.regulations-footer-text a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.regulations-footer-text a:hover {
+  text-decoration: underline;
+}
+
+.regulations-footer-qr {
+  flex-shrink: 0;
+  opacity: 0.85;
+}

@@ -6,3 +6,6 @@ dist
 .DS_Store
 .data
 *.tsbuildinfo
+.vercel
+apps/web/public/guia-boas-vindas.pdf
+apps/web/public/regulamento-interno.pdf

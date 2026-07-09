@@ -60,6 +60,17 @@ export const translations = {
       singleNightDetail: "Qualquer dia da semana",
       minNights: "Mínimo {n} noites",
     },
+    welcomeGuide: {
+      title: "Guia de boas-vindas",
+      description: "Informações úteis para a tua estadia na Casa do Penedo.",
+      openPdf: "Abrir guia (PDF)",
+      scanHint: "Lê o QR code para abrir no telemóvel",
+      qrLabel: "QR code do guia de boas-vindas",
+    },
+    regulations: {
+      title: "Regulamento interno",
+      openPdf: "Abrir PDF",
+    },
   },
   en: {
     loading: "Loading…",
@@ -108,6 +119,17 @@ export const translations = {
       singleNight: "1-night stay",
       singleNightDetail: "Any day of the week",
       minNights: "Minimum {n} nights",
+    },
+    welcomeGuide: {
+      title: "Welcome guide",
+      description: "Useful information for your stay at Casa do Penedo.",
+      openPdf: "Open guide (PDF)",
+      scanHint: "Scan the QR code to open on your phone",
+      qrLabel: "Welcome guide QR code",
+    },
+    regulations: {
+      title: "House rules",
+      openPdf: "Open PDF",
     },
   },
   fr: {
@@ -158,6 +180,17 @@ export const translations = {
       singleNightDetail: "N'importe quel jour de la semaine",
       minNights: "Minimum {n} nuits",
     },
+    welcomeGuide: {
+      title: "Guide de bienvenue",
+      description: "Informations utiles pour votre séjour à Casa do Penedo.",
+      openPdf: "Ouvrir le guide (PDF)",
+      scanHint: "Scannez le QR code pour l'ouvrir sur votre téléphone",
+      qrLabel: "QR code du guide de bienvenue",
+    },
+    regulations: {
+      title: "Règlement intérieur",
+      openPdf: "Ouvrir le PDF",
+    },
   },
   es: {
     loading: "Cargando…",
@@ -206,6 +239,17 @@ export const translations = {
       singleNight: "Estancia de 1 noche",
       singleNightDetail: "Cualquier día de la semana",
       minNights: "Mínimo {n} noches",
+    },
+    welcomeGuide: {
+      title: "Guía de bienvenida",
+      description: "Información útil para tu estancia en Casa do Penedo.",
+      openPdf: "Abrir guía (PDF)",
+      scanHint: "Escanea el código QR para abrirlo en el móvil",
+      qrLabel: "Código QR de la guía de bienvenida",
+    },
+    regulations: {
+      title: "Reglamento interno",
+      openPdf: "Abrir PDF",
     },
   },
 } as const;
