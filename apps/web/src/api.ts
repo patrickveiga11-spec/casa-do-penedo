@@ -119,10 +119,11 @@ export const api = {
       method: "POST",
       admin: true,
     }),
-  getGuests: (options?: { search?: string; marketingOnly?: boolean }) => {
+  getGuests: (options?: { search?: string; marketingOnly?: boolean; sync?: boolean }) => {
     const params = new URLSearchParams();
     if (options?.search?.trim()) params.set("search", options.search.trim());
     if (options?.marketingOnly) params.set("marketingOnly", "true");
+    if (options?.sync) params.set("sync", "true");
     const query = params.toString();
     return request<Guest[]>(`/guests${query ? `?${query}` : ""}`, { admin: true });
   },

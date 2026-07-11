@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api, type Guest } from "../api";
 import { formatDate } from "../lib/format";
 
@@ -21,61 +21,68 @@ export function GuestsRegistryPanel() {
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
-  const initialSyncDone = useRef(false);
 
-  const loadGuests = useCallback(async (options?: { search?: string; marketingOnly?: boolean }) => {
-    setLoading(true);
-    setError(null);
+  const loadGuests = useCallback(
+    async (options?: { search?: string; marketingOnly?: boolean; sync?: boolean }) => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      const data = await api.getGuests({
-        search: options?.search ?? search,
-        marketingOnly: options?.marketingOnly ?? marketingOnly,
-      });
-      setGuests(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao carregar hóspedes");
-    } finally {
-      setLoading(false);
-    }
-  }, [search, marketingOnly]);
+      try {
+        const data = await api.getGuests({
+          search: options?.search ?? search,
+          marketingOnly: options?.marketingOnly ?? marketingOnly,
+          sync: options?.sync,
+        });
+        setGuests(data);
+        return data;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Erro ao carregar hóspedes");
+        return [];
+      } finally {
+        setLoading(false);
+      }
+    },
+    [search, marketingOnly]
+  );
 
-  const syncFromReservations = useCallback(async (notice = false) => {
-    setSyncing(true);
-    setError(null);
-
-    try {
-      const result = await api.syncGuests();
-      await loadGuests();
-      if (notice) {
+  useEffect(() => {
+    void loadGuests({ sync: true }).then((data) => {
+      if (data.length > 0) {
         setSyncNotice(
-          result.total === 0
-            ? "Nenhum hóspede com email encontrado nas reservas."
-            : `${result.total} hóspede${result.total === 1 ? "" : "s"} importado${result.total === 1 ? "" : "s"} das reservas.`
+          `${data.length} hóspede${data.length === 1 ? "" : "s"} na base de dados.`
         );
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao importar hóspedes");
-    } finally {
-      setSyncing(false);
-    }
+    });
   }, [loadGuests]);
 
   useEffect(() => {
-    if (initialSyncDone.current) return;
-    initialSyncDone.current = true;
-    void syncFromReservations(true);
-  }, [syncFromReservations]);
-
-  useEffect(() => {
-    if (!initialSyncDone.current) return;
-
     const timeout = window.setTimeout(() => {
       void loadGuests();
     }, 250);
 
     return () => window.clearTimeout(timeout);
   }, [search, marketingOnly, loadGuests]);
+
+  async function handleSync() {
+    setSyncing(true);
+    setError(null);
+    setSyncNotice(null);
+
+    try {
+      const result = await api.syncGuests();
+      const data = await loadGuests();
+      setSyncNotice(
+        data.length === 0
+          ? "Nenhum hóspede com email encontrado nas reservas."
+          : `${result.total ?? data.length} hóspede${data.length === 1 ? "" : "s"} na base de dados.`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao importar hóspedes");
+      await loadGuests();
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   async function handleToggleMarketing(guest: Guest) {
     setSavingId(guest.id);
@@ -120,8 +127,8 @@ export function GuestsRegistryPanel() {
           <button
             type="button"
             className="btn secondary btn-small"
-            disabled={syncing}
-            onClick={() => syncFromReservations(true)}
+            disabled={syncing || loading}
+            onClick={handleSync}
           >
             {syncing ? "A importar…" : "Importar das reservas"}
           </button>

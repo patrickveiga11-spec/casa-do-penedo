@@ -24,10 +24,16 @@ export async function guestRoutes(app: FastifyInstance) {
   });
 
   app.get("/guests", { preHandler: requireAdmin }, async (request) => {
-    const { search, marketingOnly } = request.query as {
+    const { search, marketingOnly, sync } = request.query as {
       search?: string;
       marketingOnly?: string;
+      sync?: string;
     };
+
+    const guestCount = await prisma.guest.count();
+    if (guestCount === 0 || sync === "true") {
+      await backfillGuestRegistry();
+    }
 
     const term = search?.trim();
 
