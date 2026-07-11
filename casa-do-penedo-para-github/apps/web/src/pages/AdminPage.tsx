@@ -489,8 +489,6 @@ export default function AdminPage() {
         </section>
       )}
 
-      {monthlyRevenue && <MonthlyRevenueChart data={monthlyRevenue} />}
-
       <div className="layout">
         <section className="panel" id="admin-calendar">
           <h2>Calendário {currentYear()}</h2>
@@ -928,6 +926,8 @@ export default function AdminPage() {
       <div style={{ marginTop: 24 }}>
         <PricingInfo rules={pricingRules} />
       </div>
+
+      {monthlyRevenue && <MonthlyRevenueChart data={monthlyRevenue} />}
     </div>
   );
 }
