@@ -108,6 +108,60 @@ export function buildReservationComms(reservation: {
   return [provisional, confirmation, welcome];
 }
 
+export function getWelcomeGuidesDue(reservations: Array<{
+  id: string;
+  guestName: string;
+  guestEmail: string | null;
+  checkIn: string;
+  validatedAt?: string | null;
+  welcomeEmailSentAt?: string | null;
+  status: string;
+}>) {
+  const active = new Set(["CONFIRMED", "CHECKED_IN", "PENDING"]);
+
+  return reservations.filter((reservation) => {
+    if (!active.has(reservation.status)) return false;
+    if (!reservation.guestEmail?.trim()) return false;
+    if (!reservation.validatedAt) return false;
+    if (reservation.welcomeEmailSentAt) return false;
+
+    const daysLeft = daysUntilCheckIn(reservation.checkIn);
+    const daysUntilSend = daysLeft - WELCOME_DAYS_BEFORE;
+
+    return daysUntilSend <= 2;
+  });
+}
+
+export interface CommsAlertSummary {
+  welcomeDue: Array<{ id: string; guestName: string; checkIn: string; overdue: boolean }>;
+  pendingValidation: number;
+}
+
+export function buildCommsAlertSummary(
+  reservations: Array<{
+    id: string;
+    guestName: string;
+    guestEmail: string | null;
+    checkIn: string;
+    validatedAt?: string | null;
+    welcomeEmailSentAt?: string | null;
+    status: string;
+  }>
+): CommsAlertSummary {
+  const welcomeDue = getWelcomeGuidesDue(reservations).map((reservation) => ({
+    id: reservation.id,
+    guestName: reservation.guestName,
+    checkIn: reservation.checkIn,
+    overdue: daysUntilCheckIn(reservation.checkIn) <= WELCOME_DAYS_BEFORE,
+  }));
+
+  const pendingValidation = reservations.filter(
+    (reservation) => reservation.status === "PENDING" && !reservation.validatedAt
+  ).length;
+
+  return { welcomeDue, pendingValidation };
+}
+
 function toDateKey(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");

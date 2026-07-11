@@ -12,6 +12,8 @@ import { CalendarView } from "../components/CalendarView";
 import { DateField } from "../components/DateField";
 import { LogoHeader } from "../components/LogoHeader";
 import { PricingInfo } from "../components/PricingInfo";
+import { CommsAlertBanner } from "../components/CommsAlertBanner";
+import { ReservationCommsIcons } from "../components/ReservationCommsIcons";
 import { ReservationCommsTimeline } from "../components/ReservationCommsTimeline";
 import { ReservationDatesLink } from "../components/ReservationDatesLink";
 import { formatDate, formatMoney, monthRange, dateKeyFromIso, parseDateKey, startOfMonth } from "../lib/format";
@@ -182,6 +184,19 @@ export default function AdminPage() {
       checkOut: dateKeyFromIso(reservation.checkOut),
     });
     document.getElementById("admin-calendar")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function focusReservationById(id: string) {
+    const reservation = reservations.find((item) => item.id === id);
+    if (!reservation) return;
+
+    if (selectedReservationId !== id) {
+      void openReservationDetails(reservation);
+    }
+
+    window.setTimeout(() => {
+      document.getElementById(`reservation-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
   }
 
   async function openReservationDetails(reservation: Reservation) {
@@ -437,6 +452,8 @@ export default function AdminPage() {
         </section>
       )}
 
+      <CommsAlertBanner reservations={sortedReservations} onSelectReservation={focusReservationById} />
+
       {kpis && (
         <section className="kpi-grid">
           <p className="kpi-month-label muted-text">Indicadores de {kpiMonthLabel}</p>
@@ -582,7 +599,7 @@ export default function AdminPage() {
               <p className="empty">Sem reservas.</p>
             ) : (
               sortedReservations.map((reservation) => (
-                <div className="reservation-row" key={reservation.id}>
+                <div className="reservation-row" id={`reservation-${reservation.id}`} key={reservation.id}>
                   <div className="list-item reservation-item">
                     <div>
                       <strong>{reservation.guestName}</strong>
@@ -592,6 +609,7 @@ export default function AdminPage() {
                         guests={reservation.guests}
                         onOpenCalendar={() => openReservationOnCalendar(reservation)}
                       />
+                      <ReservationCommsIcons reservation={reservation} />
                     </div>
                     <div className="reservation-actions">
                       <div className="reservation-price">
