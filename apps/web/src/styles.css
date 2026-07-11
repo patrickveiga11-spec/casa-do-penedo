@@ -250,6 +250,7 @@ button {
   }
 }
 
+.layout {
   display: grid;
   grid-template-columns: 1.2fr 0.8fr;
   gap: 24px;
@@ -1251,6 +1252,149 @@ button {
 
 .confirmation-grid strong {
   font-size: 1.125rem;
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    padding: 14px 10px;
+  }
+
+  .layout {
+    gap: 16px;
+  }
+
+  .panel {
+    padding: 14px 12px;
+  }
+
+  .panel h2 {
+    font-size: 1rem;
+  }
+
+  .language-selector {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .language-selector button {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    min-width: 38px;
+  }
+
+  .hero-logo {
+    width: min(180px, 60vw);
+  }
+
+  .calendar-nav {
+    grid-template-columns: 36px 1fr auto;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .calendar-month {
+    font-size: 0.92rem;
+    line-height: 1.2;
+  }
+
+  .calendar-grid {
+    gap: 3px;
+  }
+
+  .calendar-weekday {
+    font-size: 0.62rem;
+    letter-spacing: -0.02em;
+    padding: 0;
+  }
+
+  .calendar-day {
+    min-height: 0;
+    aspect-ratio: 1;
+    padding: 3px 2px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    overflow: hidden;
+  }
+
+  .calendar-day .date-wrap {
+    width: 26px;
+    height: 26px;
+  }
+
+  .calendar-day .date {
+    font-size: 0.82rem;
+  }
+
+  .calendar-day.booked .date-mark {
+    font-size: 1.45rem;
+    inset: -1px;
+  }
+
+  .calendar-day .label {
+    display: none;
+  }
+
+  .calendar-legend {
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    font-size: 0.72rem;
+    margin-top: 10px;
+  }
+
+  .legend {
+    width: 10px;
+    height: 10px;
+  }
+
+  .admin-bar {
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .kpi-card strong {
+    font-size: 1.2rem;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .guests-table-wrap {
+    margin: 0 -4px;
+  }
+
+  .guests-table th,
+  .guests-table td {
+    padding: 8px 6px;
+    font-size: 0.82rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .calendar-weekday {
+    font-size: 0.55rem;
+  }
+
+  .calendar-day .date {
+    font-size: 0.75rem;
+  }
+
+  .calendar-day .date-wrap {
+    width: 22px;
+    height: 22px;
+  }
+
+  .calendar-day.booked .date-mark {
+    font-size: 1.2rem;
+  }
 }
 
 .theme-admin {

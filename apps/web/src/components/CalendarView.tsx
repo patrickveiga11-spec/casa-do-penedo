@@ -180,6 +180,7 @@ export function CalendarView({
               ]
                 .filter(Boolean)
                 .join(" ")}
+              title={occupiedLabel ?? undefined}
             >
               <div className="date-wrap">
                 <div className="date">{date.getDate()}</div>
