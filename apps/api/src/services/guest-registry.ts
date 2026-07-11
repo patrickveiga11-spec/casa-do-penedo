@@ -1,8 +1,6 @@
 import type { Reservation } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 
-const ACTIVE_STATUSES = new Set(["PENDING", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT"]);
-
 export function normalizeGuestEmail(email: string | null | undefined): string | null {
   const normalized = email?.trim().toLowerCase();
   if (!normalized || !normalized.includes("@")) {
@@ -13,10 +11,7 @@ export function normalizeGuestEmail(email: string | null | undefined): string | 
 
 async function findReservationsForEmail(email: string) {
   const candidates = await prisma.reservation.findMany({
-    where: {
-      guestEmail: { not: null },
-      status: { in: [...ACTIVE_STATUSES] },
-    },
+    where: { guestEmail: { not: null } },
     orderBy: { checkIn: "asc" },
   });
 
@@ -67,10 +62,7 @@ export async function syncGuestFromReservation(reservation: Pick<Reservation, "g
 
 export async function backfillGuestRegistry() {
   const reservations = await prisma.reservation.findMany({
-    where: {
-      guestEmail: { not: null },
-      status: { in: [...ACTIVE_STATUSES] },
-    },
+    where: { guestEmail: { not: null } },
     select: { guestEmail: true },
   });
 

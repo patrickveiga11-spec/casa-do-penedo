@@ -114,6 +114,11 @@ export const api = {
     request<AvailabilityBlock>("/blocks", { method: "POST", body: JSON.stringify(data), admin: true }),
   deleteBlock: (id: string) =>
     request<{ success: boolean }>(`/blocks/${id}`, { method: "DELETE", admin: true }),
+  syncGuests: () =>
+    request<{ synced: number; uniqueEmails: number; total: number }>("/guests/sync", {
+      method: "POST",
+      admin: true,
+    }),
   getGuests: (options?: { search?: string; marketingOnly?: boolean }) => {
     const params = new URLSearchParams();
     if (options?.search?.trim()) params.set("search", options.search.trim());

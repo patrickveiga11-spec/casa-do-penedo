@@ -505,6 +505,12 @@ button {
   margin: 0 0 4px;
 }
 
+.guests-registry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .guests-registry-toolbar {
   display: flex;
   flex-wrap: wrap;

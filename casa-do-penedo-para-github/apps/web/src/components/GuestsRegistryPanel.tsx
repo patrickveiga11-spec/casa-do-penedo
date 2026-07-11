@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Guest } from "../api";
 import { formatDate } from "../lib/format";
 
@@ -16,40 +16,66 @@ export function GuestsRegistryPanel() {
   const [search, setSearch] = useState("");
   const [marketingOnly, setMarketingOnly] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncNotice, setSyncNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const initialSyncDone = useRef(false);
+
+  const loadGuests = useCallback(async (options?: { search?: string; marketingOnly?: boolean }) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data = await api.getGuests({
+        search: options?.search ?? search,
+        marketingOnly: options?.marketingOnly ?? marketingOnly,
+      });
+      setGuests(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao carregar hóspedes");
+    } finally {
+      setLoading(false);
+    }
+  }, [search, marketingOnly]);
+
+  const syncFromReservations = useCallback(async (notice = false) => {
+    setSyncing(true);
+    setError(null);
+
+    try {
+      const result = await api.syncGuests();
+      await loadGuests();
+      if (notice) {
+        setSyncNotice(
+          result.total === 0
+            ? "Nenhum hóspede com email encontrado nas reservas."
+            : `${result.total} hóspede${result.total === 1 ? "" : "s"} importado${result.total === 1 ? "" : "s"} das reservas.`
+        );
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao importar hóspedes");
+    } finally {
+      setSyncing(false);
+    }
+  }, [loadGuests]);
 
   useEffect(() => {
-    let cancelled = false;
+    if (initialSyncDone.current) return;
+    initialSyncDone.current = true;
+    void syncFromReservations(true);
+  }, [syncFromReservations]);
 
-    async function loadGuests() {
-      setLoading(true);
-      setError(null);
+  useEffect(() => {
+    if (!initialSyncDone.current) return;
 
-      try {
-        const data = await api.getGuests({ search, marketingOnly });
-        if (!cancelled) {
-          setGuests(data);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Erro ao carregar hóspedes");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
+    const timeout = window.setTimeout(() => {
+      void loadGuests();
+    }, 250);
 
-    const timeout = window.setTimeout(loadGuests, 250);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeout);
-    };
-  }, [search, marketingOnly]);
+    return () => window.clearTimeout(timeout);
+  }, [search, marketingOnly, loadGuests]);
 
   async function handleToggleMarketing(guest: Guest) {
     setSavingId(guest.id);
@@ -90,9 +116,19 @@ export function GuestsRegistryPanel() {
             Registo automático a partir das reservas. Usa para contactar hóspedes ou exportar a mailing list.
           </p>
         </div>
-        <button type="button" className="btn secondary btn-small" disabled={exporting} onClick={handleExport}>
-          {exporting ? "A exportar…" : "Exportar CSV"}
-        </button>
+        <div className="guests-registry-actions">
+          <button
+            type="button"
+            className="btn secondary btn-small"
+            disabled={syncing}
+            onClick={() => syncFromReservations(true)}
+          >
+            {syncing ? "A importar…" : "Importar das reservas"}
+          </button>
+          <button type="button" className="btn secondary btn-small" disabled={exporting} onClick={handleExport}>
+            {exporting ? "A exportar…" : "Exportar CSV"}
+          </button>
+        </div>
       </div>
 
       <div className="guests-registry-toolbar">
@@ -114,14 +150,15 @@ export function GuestsRegistryPanel() {
       </div>
 
       <p className="muted-text guests-summary">
-        {loading
+        {loading || syncing
           ? "A carregar…"
           : `${guests.length} hóspede${guests.length === 1 ? "" : "s"}${marketingOnly ? "" : ` · ${mailingCount} na mailing list`}`}
       </p>
 
+      {syncNotice && <div className="alert success">{syncNotice}</div>}
       {error && <div className="alert">{error}</div>}
 
-      {!loading && guests.length === 0 ? (
+      {!loading && !syncing && guests.length === 0 ? (
         <p className="empty">Ainda não há hóspedes registados com email.</p>
       ) : (
         <div className="guests-table-wrap">

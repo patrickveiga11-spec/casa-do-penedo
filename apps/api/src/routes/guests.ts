@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { requireAdmin } from "../lib/admin-auth.js";
+import { backfillGuestRegistry } from "../services/guest-registry.js";
 
 const updateGuestSchema = z.object({
   marketingOptIn: z.boolean().optional(),
@@ -16,6 +17,12 @@ function escapeCsv(value: string) {
 }
 
 export async function guestRoutes(app: FastifyInstance) {
+  app.post("/guests/sync", { preHandler: requireAdmin }, async () => {
+    const result = await backfillGuestRegistry();
+    const total = await prisma.guest.count();
+    return { ...result, total };
+  });
+
   app.get("/guests", { preHandler: requireAdmin }, async (request) => {
     const { search, marketingOnly } = request.query as {
       search?: string;
