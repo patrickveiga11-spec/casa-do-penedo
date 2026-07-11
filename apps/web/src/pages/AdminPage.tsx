@@ -12,6 +12,7 @@ import { CalendarView } from "../components/CalendarView";
 import { DateField } from "../components/DateField";
 import { LogoHeader } from "../components/LogoHeader";
 import { PricingInfo } from "../components/PricingInfo";
+import { ReservationCommsTimeline } from "../components/ReservationCommsTimeline";
 import { ReservationDatesLink } from "../components/ReservationDatesLink";
 import { formatDate, formatMoney, monthRange, dateKeyFromIso, parseDateKey, startOfMonth } from "../lib/format";
 
@@ -692,6 +693,8 @@ export default function AdminPage() {
                           </div>
                         )}
                       </div>
+
+                      <ReservationCommsTimeline reservation={reservation} />
 
                       <div className="field">
                         <label htmlFor={`discount-${reservation.id}`}>Desconto (%)</label>

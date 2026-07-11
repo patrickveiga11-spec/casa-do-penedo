@@ -1,0 +1,116 @@
+import { dateKeyFromIso, formatDate, parseDateKey } from "./format";
+
+export type CommStatus = "sent" | "scheduled" | "pending" | "unavailable";
+
+export interface CommStep {
+  key: "provisional" | "confirmation" | "welcome";
+  label: string;
+  status: CommStatus;
+  detail: string;
+}
+
+const WELCOME_DAYS_BEFORE = 2;
+
+function formatDateTime(iso: string) {
+  const date = new Date(iso);
+  return date.toLocaleString("pt-PT", {
+    timeZone: "Europe/Lisbon",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function welcomeScheduleDateKey(checkIn: string) {
+  const checkInDate = parseDateKey(dateKeyFromIso(checkIn));
+  return addDays(checkInDate, -WELCOME_DAYS_BEFORE);
+}
+
+function daysUntilCheckIn(checkIn: string, from = new Date()) {
+  const target = parseDateKey(dateKeyFromIso(checkIn));
+  const today = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  const checkInDay = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+  return Math.round((checkInDay.getTime() - today.getTime()) / 86_400_000);
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+export function buildReservationComms(reservation: {
+  guestEmail: string | null;
+  createdAt?: string | null;
+  validatedAt?: string | null;
+  welcomeEmailSentAt?: string | null;
+  checkIn: string;
+}): CommStep[] {
+  const hasEmail = Boolean(reservation.guestEmail?.trim());
+
+  const provisional: CommStep = {
+    key: "provisional",
+    label: "Reserva provisória",
+    status: !hasEmail ? "unavailable" : "sent",
+    detail: !hasEmail
+      ? "Sem email do hóspede"
+      : reservation.createdAt
+        ? `Enviada em ${formatDateTime(reservation.createdAt)}`
+        : "Enviada na criação da reserva",
+  };
+
+  const confirmation: CommStep = {
+    key: "confirmation",
+    label: "Confirmação final",
+    status: !hasEmail ? "unavailable" : reservation.validatedAt ? "sent" : "pending",
+    detail: !hasEmail
+      ? "Sem email do hóspede"
+      : reservation.validatedAt
+        ? `Enviada em ${formatDateTime(reservation.validatedAt)}`
+        : "Pendente — enviada ao validar a reserva",
+  };
+
+  let welcomeStatus: CommStatus = "pending";
+  let welcomeDetail = "Pendente";
+
+  if (!hasEmail) {
+    welcomeStatus = "unavailable";
+    welcomeDetail = "Sem email do hóspede";
+  } else if (reservation.welcomeEmailSentAt) {
+    welcomeStatus = "sent";
+    welcomeDetail = `Enviado em ${formatDateTime(reservation.welcomeEmailSentAt)}`;
+  } else if (!reservation.validatedAt) {
+    welcomeStatus = "pending";
+    welcomeDetail = "Após confirmação da reserva";
+  } else {
+    const scheduleDay = welcomeScheduleDateKey(reservation.checkIn);
+    const scheduleLabel = `${formatDate(toDateKey(scheduleDay))} às 9h`;
+    const daysLeft = daysUntilCheckIn(reservation.checkIn);
+
+    if (daysLeft <= WELCOME_DAYS_BEFORE) {
+      welcomeStatus = "scheduled";
+      welcomeDetail = "Envio automático em breve (check-in a menos de 2 dias)";
+    } else {
+      welcomeStatus = "scheduled";
+      welcomeDetail = `Agendado para ${scheduleLabel}`;
+    }
+  }
+
+  const welcome: CommStep = {
+    key: "welcome",
+    label: "Guia de boas-vindas",
+    status: welcomeStatus,
+    detail: welcomeDetail,
+  };
+
+  return [provisional, confirmation, welcome];
+}
+
+function toDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
