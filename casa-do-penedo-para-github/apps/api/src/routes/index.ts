@@ -14,6 +14,7 @@ import {
   shouldSendWelcomeOnValidation,
 } from "../services/welcome-email.js";
 import { generateUniqueAccessCode } from "../services/access-code.js";
+import { syncGuestByEmail, syncGuestFromReservation } from "../services/guest-registry.js";
 import { createBlockSchema, createPricingRuleSchema, createReservationSchema, quoteSchema, updateReservationSchema } from "../schemas.js";
 import { formatDate, monthBounds, nightsInRange, toDateOnly } from "../lib/dates.js";
 import { requireAdmin, verifyAdminToken } from "../lib/admin-auth.js";
@@ -170,6 +171,10 @@ export async function reservationRoutes(app: FastifyInstance) {
       console.warn("[email:owner-notification]", ownerEmailResult.reason);
     }
 
+    void syncGuestFromReservation(reservation).catch((error) => {
+      console.warn("[guest-registry:sync]", error);
+    });
+
     return reply.status(201).send({ ...reservation, emailSent, emailError });
   });
 
@@ -202,6 +207,10 @@ export async function reservationRoutes(app: FastifyInstance) {
     }
 
     await prisma.reservation.delete({ where: { id } });
+
+    void syncGuestByEmail(existing.guestEmail).catch((error) => {
+      console.warn("[guest-registry:sync]", error);
+    });
 
     return reply.send({ success: true, emailSent, emailError });
   });

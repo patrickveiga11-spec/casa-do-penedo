@@ -127,3 +127,21 @@ model PricingRule {
 
   @@index([propertyId, isActive])
 }
+
+model Guest {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  name           String
+  phone          String?
+  stayCount      Int       @default(0)
+  firstStayAt    DateTime? @db.Date
+  lastStayAt     DateTime? @db.Date
+  lastCheckOut   DateTime? @db.Date
+  marketingOptIn Boolean   @default(true)
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([lastStayAt])
+  @@index([marketingOptIn])
+}

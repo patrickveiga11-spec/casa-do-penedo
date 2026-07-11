@@ -10,6 +10,7 @@ import {
 } from "../api";
 import { CalendarView } from "../components/CalendarView";
 import { DateField } from "../components/DateField";
+import { GuestsRegistryPanel } from "../components/GuestsRegistryPanel";
 import { LogoHeader } from "../components/LogoHeader";
 import { PricingInfo } from "../components/PricingInfo";
 import { CommsAlertBanner } from "../components/CommsAlertBanner";
@@ -421,6 +422,13 @@ export default function AdminPage() {
         </Link>
         <button
           type="button"
+          className="admin-link"
+          onClick={() => document.getElementById("admin-guests")?.scrollIntoView({ behavior: "smooth" })}
+        >
+          Base de hóspedes
+        </button>
+        <button
+          type="button"
           className="admin-link admin-logout"
           onClick={() => api.logoutAdmin().then(() => window.location.reload())}
         >
@@ -428,7 +436,7 @@ export default function AdminPage() {
         </button>
       </div>
 
-      <LogoHeader subtitle="Painel de gestão — reservas, calendário e tarifas" />
+      <LogoHeader subtitle="Painel de gestão — reservas, calendário, tarifas e base de hóspedes" />
 
       {pendingReservations.length > 0 && (
         <section className="admin-alert admin-alert-pending">
@@ -907,6 +915,8 @@ export default function AdminPage() {
           </div>
         </section>
       </div>
+
+      <GuestsRegistryPanel />
 
       <div style={{ marginTop: 24 }}>
         <PricingInfo rules={pricingRules} />

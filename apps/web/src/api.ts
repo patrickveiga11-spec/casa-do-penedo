@@ -114,6 +114,28 @@ export const api = {
     request<AvailabilityBlock>("/blocks", { method: "POST", body: JSON.stringify(data), admin: true }),
   deleteBlock: (id: string) =>
     request<{ success: boolean }>(`/blocks/${id}`, { method: "DELETE", admin: true }),
+  getGuests: (options?: { search?: string; marketingOnly?: boolean }) => {
+    const params = new URLSearchParams();
+    if (options?.search?.trim()) params.set("search", options.search.trim());
+    if (options?.marketingOnly) params.set("marketingOnly", "true");
+    const query = params.toString();
+    return request<Guest[]>(`/guests${query ? `?${query}` : ""}`, { admin: true });
+  },
+  updateGuest: (id: string, data: { marketingOptIn?: boolean; notes?: string | null }) =>
+    request<Guest>(`/guests/${id}`, { method: "PATCH", admin: true, body: JSON.stringify(data) }),
+  exportGuestsCsv: async (marketingOnly = false) => {
+    const token = getAdminToken();
+    const params = marketingOnly ? "?marketingOnly=true" : "";
+    const response = await fetch(`${API_URL}/guests/export.csv${params}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+    if (!response.ok) {
+      throw new Error("Não foi possível exportar a lista de hóspedes");
+    }
+
+    return response.blob();
+  },
 };
 
 export interface Property {
@@ -234,4 +256,19 @@ export interface CreateBlockInput {
   startDate: string;
   endDate: string;
   reason?: string;
+}
+
+export interface Guest {
+  id: string;
+  email: string;
+  name: string;
+  phone: string | null;
+  stayCount: number;
+  firstStayAt: string | null;
+  lastStayAt: string | null;
+  lastCheckOut: string | null;
+  marketingOptIn: boolean;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
 }

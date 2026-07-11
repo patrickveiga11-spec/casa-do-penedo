@@ -9,10 +9,12 @@ import {
   propertyRoutes,
   reservationRoutes,
 } from "./routes/index.js";
+import { guestRoutes } from "./routes/guests.js";
 import { authRoutes } from "./routes/auth.js";
 import { cronRoutes } from "./routes/cron.js";
 import { startWelcomeEmailCron } from "./lib/welcome-cron.js";
 import { backfillMissingAccessCodes } from "./services/access-code.js";
+import { backfillGuestRegistry } from "./services/guest-registry.js";
 
 loadEnv();
 
@@ -31,6 +33,7 @@ await app.register(calendarRoutes);
 await app.register(pricingRoutes);
 await app.register(blockRoutes);
 await app.register(dashboardRoutes);
+await app.register(guestRoutes);
 await app.register(cronRoutes);
 
 try {
@@ -39,6 +42,11 @@ try {
   void backfillMissingAccessCodes().then((result) => {
     if (result.updated > 0) {
       app.log.info(result, "Códigos de acesso atribuídos a reservas validadas");
+    }
+  });
+  void backfillGuestRegistry().then((result) => {
+    if (result.synced > 0) {
+      app.log.info(result, "Base de hóspedes sincronizada");
     }
   });
 } catch (error) {

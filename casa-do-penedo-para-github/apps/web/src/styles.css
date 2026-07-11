@@ -488,6 +488,91 @@ button {
   color: #1d4ed8;
 }
 
+.guests-registry {
+  margin-top: 24px;
+}
+
+.guests-registry-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.guests-registry-header h2 {
+  margin: 0 0 4px;
+}
+
+.guests-registry-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.guests-registry-toolbar input[type="search"] {
+  flex: 1 1 240px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.guests-filter,
+.guests-opt-in {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.guests-summary {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+}
+
+.guests-table-wrap {
+  overflow-x: auto;
+}
+
+.guests-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.guests-table th,
+.guests-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.guests-table th {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.guests-table a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.guests-table a:hover {
+  text-decoration: underline;
+}
+
+.theme-admin .guests-table a {
+  color: #1d4ed8;
+}
+
 .reservation-actions {
   display: flex;
   flex-wrap: wrap;
