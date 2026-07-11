@@ -598,4 +598,51 @@ export async function dashboardRoutes(app: FastifyInstance) {
       bookedNights,
     };
   });
+
+  app.get("/dashboard/monthly-revenue", { preHandler: requireAdmin }, async (request) => {
+    const { propertyId, year } = request.query as { propertyId?: string; year?: string };
+    const selectedYear = year && /^\d{4}$/.test(year) ? Number(year) : new Date().getFullYear();
+
+    const yearStart = new Date(Date.UTC(selectedYear, 0, 1));
+    const yearEnd = new Date(Date.UTC(selectedYear, 11, 31));
+
+    const reservations = await prisma.reservation.findMany({
+      where: {
+        ...(propertyId ? { propertyId } : {}),
+        status: { not: "CANCELLED" },
+        checkIn: { gte: yearStart, lte: yearEnd },
+      },
+      select: {
+        totalPrice: true,
+        checkIn: true,
+      },
+    });
+
+    const monthLabels = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    const buckets = monthLabels.map((label, index) => ({
+      month: index + 1,
+      label,
+      revenue: 0,
+      reservations: 0,
+    }));
+
+    for (const reservation of reservations) {
+      const monthIndex = reservation.checkIn.getUTCMonth();
+      buckets[monthIndex].revenue += Number(reservation.totalPrice);
+      buckets[monthIndex].reservations += 1;
+    }
+
+    const months = buckets.map((bucket) => ({
+      ...bucket,
+      revenue: Math.round(bucket.revenue * 100) / 100,
+    }));
+
+    const totalRevenue = Math.round(months.reduce((sum, month) => sum + month.revenue, 0) * 100) / 100;
+
+    return {
+      year: selectedYear,
+      months,
+      totalRevenue,
+    };
+  });
 }

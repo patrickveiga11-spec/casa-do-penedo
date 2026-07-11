@@ -69,6 +69,11 @@ export const api = {
   getProperty: (id: string) => request<PropertyDetail>(`/properties/${id}`),
   getKpis: (propertyId: string, month?: string) =>
     request<Kpis>(`/dashboard/kpis?propertyId=${propertyId}${month ? `&month=${month}` : ""}`, { admin: true }),
+  getMonthlyRevenue: (propertyId: string, year?: number) =>
+    request<MonthlyRevenue>(
+      `/dashboard/monthly-revenue?propertyId=${propertyId}${year ? `&year=${year}` : ""}`,
+      { admin: true }
+    ),
   getCalendar: (propertyId: string, from: string, to: string, admin = false) =>
     request<CalendarData>(`/calendar/${propertyId}?from=${from}&to=${to}`, { admin }),
   getReservations: (propertyId: string) =>
@@ -213,6 +218,19 @@ export interface Kpis {
   revenue: number;
   occupancyRate: number;
   bookedNights: number;
+}
+
+export interface MonthlyRevenueMonth {
+  month: number;
+  label: string;
+  revenue: number;
+  reservations: number;
+}
+
+export interface MonthlyRevenue {
+  year: number;
+  months: MonthlyRevenueMonth[];
+  totalRevenue: number;
 }
 
 export interface PriceBreakdown {

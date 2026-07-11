@@ -143,7 +143,113 @@ button {
   font-size: 1.5rem;
 }
 
-.layout {
+.monthly-revenue-chart {
+  margin-bottom: 24px;
+}
+
+.monthly-revenue-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.monthly-revenue-header h2 {
+  margin: 0 0 4px;
+}
+
+.monthly-revenue-total strong {
+  display: block;
+  font-size: 1.35rem;
+  color: var(--accent);
+}
+
+.monthly-revenue-bars {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 8px;
+  align-items: end;
+  min-height: 220px;
+  padding-top: 8px;
+}
+
+.monthly-revenue-bar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-height: 220px;
+}
+
+.monthly-revenue-bar {
+  width: 100%;
+  max-width: 56px;
+  min-height: 0;
+  border-radius: 10px 10px 4px 4px;
+  background: linear-gradient(180deg, #3d8b67 0%, var(--accent) 100%);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 6px;
+  position: relative;
+  transition: transform 0.15s ease;
+}
+
+.monthly-revenue-bar:hover {
+  transform: translateY(-2px);
+}
+
+.monthly-revenue-bar-peak {
+  background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+}
+
+.monthly-revenue-bar-value {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  line-height: 1.1;
+  padding: 0 2px;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.monthly-revenue-bar-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.monthly-revenue-bar-count {
+  font-size: 0.7rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.theme-admin .monthly-revenue-bar {
+  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+.theme-admin .monthly-revenue-bar-peak {
+  background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+}
+
+@media (max-width: 760px) {
+  .monthly-revenue-bars {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    row-gap: 16px;
+  }
+
+  .monthly-revenue-bar-value {
+    display: none;
+  }
+}
+
   display: grid;
   grid-template-columns: 1.2fr 0.8fr;
   gap: 24px;

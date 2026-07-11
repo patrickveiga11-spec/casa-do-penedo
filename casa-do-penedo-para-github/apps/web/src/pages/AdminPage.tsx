@@ -4,6 +4,7 @@ import {
   api,
   type AvailabilityBlock,
   type Kpis,
+  type MonthlyRevenue,
   type PricingRule,
   type Property,
   type Reservation,
@@ -11,6 +12,7 @@ import {
 import { CalendarView } from "../components/CalendarView";
 import { DateField } from "../components/DateField";
 import { GuestsRegistryPanel } from "../components/GuestsRegistryPanel";
+import { MonthlyRevenueChart } from "../components/MonthlyRevenueChart";
 import { LogoHeader } from "../components/LogoHeader";
 import { PricingInfo } from "../components/PricingInfo";
 import { CommsAlertBanner } from "../components/CommsAlertBanner";
@@ -30,6 +32,7 @@ function isInCurrentYear(date: Date) {
 export default function AdminPage() {
   const [property, setProperty] = useState<Property | null>(null);
   const [kpis, setKpis] = useState<Kpis | null>(null);
+  const [monthlyRevenue, setMonthlyRevenue] = useState<MonthlyRevenue | null>(null);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [pricingRules, setPricingRules] = useState<PricingRule[]>([]);
   const [blocks, setBlocks] = useState<AvailabilityBlock[]>([]);
@@ -88,14 +91,16 @@ export default function AdminPage() {
     detailSubtotal !== null ? Math.round(detailSubtotal * (1 - editDiscount / 100) * 100) / 100 : null;
 
   async function loadAll(selectedProperty: Property) {
-    const [kpiData, reservationData, ruleData, blockData] = await Promise.all([
+    const [kpiData, revenueData, reservationData, ruleData, blockData] = await Promise.all([
       api.getKpis(selectedProperty.id, kpiMonth),
+      api.getMonthlyRevenue(selectedProperty.id, currentYear()),
       api.getReservations(selectedProperty.id),
       api.getPricingRules(selectedProperty.id),
       api.getBlocks(selectedProperty.id),
     ]);
 
     setKpis(kpiData);
+    setMonthlyRevenue(revenueData);
     setReservations(reservationData);
     setPricingRules(ruleData);
     setBlocks(blockData);
@@ -483,6 +488,8 @@ export default function AdminPage() {
           </div>
         </section>
       )}
+
+      {monthlyRevenue && <MonthlyRevenueChart data={monthlyRevenue} />}
 
       <div className="layout">
         <section className="panel" id="admin-calendar">
