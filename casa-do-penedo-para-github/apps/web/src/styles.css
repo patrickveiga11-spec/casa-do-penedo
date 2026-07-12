@@ -1169,8 +1169,27 @@ button {
   margin-top: 8px;
 }
 
+.block-row + .block-row {
+  margin-top: 12px;
+}
+
 .block-item {
   align-items: center;
+}
+
+.block-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.block-edit-form {
+  margin-top: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  background: #f8faf9;
+  border: 1px solid var(--border);
 }
 
 .field-row {

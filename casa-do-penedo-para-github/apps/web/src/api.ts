@@ -153,6 +153,8 @@ export const api = {
     request<AvailabilityBlock[]>(`/blocks?propertyId=${propertyId}`, { admin: true }),
   createBlock: (data: CreateBlockInput) =>
     request<AvailabilityBlock>("/blocks", { method: "POST", body: JSON.stringify(data), admin: true }),
+  updateBlock: (id: string, data: UpdateBlockInput) =>
+    request<AvailabilityBlock>(`/blocks/${id}`, { method: "PATCH", body: JSON.stringify(data), admin: true }),
   deleteBlock: (id: string) =>
     request<{ success: boolean }>(`/blocks/${id}`, { method: "DELETE", admin: true }),
   syncGuests: () =>
@@ -317,6 +319,12 @@ export interface CreateBlockInput {
   propertyId: string;
   startDate: string;
   endDate: string;
+  reason?: string;
+}
+
+export interface UpdateBlockInput {
+  startDate?: string;
+  endDate?: string;
   reason?: string;
 }
 

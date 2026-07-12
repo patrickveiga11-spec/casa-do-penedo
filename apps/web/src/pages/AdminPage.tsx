@@ -83,6 +83,9 @@ export default function AdminPage() {
   const [blockNotice, setBlockNotice] = useState<string | null>(null);
   const [submittingBlock, setSubmittingBlock] = useState(false);
   const [deletingBlockId, setDeletingBlockId] = useState<string | null>(null);
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+  const [editBlockForm, setEditBlockForm] = useState({ startDate: "", endDate: "", reason: "" });
+  const [savingBlockId, setSavingBlockId] = useState<string | null>(null);
   const [reservationTab, setReservationTab] = useState<ReservationListTab>("upcoming");
   const [reservationSearch, setReservationSearch] = useState("");
   const sortedBlocks = [...blocks].sort((a, b) =>
@@ -403,12 +406,49 @@ export default function AdminPage() {
 
     try {
       await api.deleteBlock(blockId);
+      if (editingBlockId === blockId) {
+        setEditingBlockId(null);
+      }
       setBlockNotice("Bloqueio removido. As datas voltam a ficar disponíveis.");
       await loadAll(property);
     } catch (err) {
       setBlockError(err instanceof Error ? err.message : "Erro ao remover bloqueio");
     } finally {
       setDeletingBlockId(null);
+    }
+  }
+
+  function startEditingBlock(block: AvailabilityBlock) {
+    setEditingBlockId(block.id);
+    setEditBlockForm({
+      startDate: dateKeyFromIso(block.startDate),
+      endDate: dateKeyFromIso(block.endDate),
+      reason: block.reason ?? "",
+    });
+    setBlockError(null);
+    setBlockNotice(null);
+  }
+
+  async function handleSaveBlock(blockId: string) {
+    if (!property) return;
+
+    setSavingBlockId(blockId);
+    setBlockError(null);
+    setBlockNotice(null);
+
+    try {
+      await api.updateBlock(blockId, {
+        startDate: editBlockForm.startDate,
+        endDate: editBlockForm.endDate,
+        reason: editBlockForm.reason.trim() || undefined,
+      });
+      setEditingBlockId(null);
+      setBlockNotice("Bloqueio actualizado.");
+      await loadAll(property);
+    } catch (err) {
+      setBlockError(err instanceof Error ? err.message : "Erro ao actualizar bloqueio");
+    } finally {
+      setSavingBlockId(null);
     }
   }
 
@@ -563,7 +603,7 @@ export default function AdminPage() {
             <h3>Bloquear datas</h3>
             <p className="muted-text panel-hint">
               Marca dias como indisponíveis sem criar reserva. Aparecem a vermelho no calendário e como «Ocupado» na
-              página pública.
+              página pública. Usa «Editar» para alterar datas ou motivo sem desbloquear.
             </p>
             {blockNotice && <div className="alert success">{blockNotice}</div>}
             {blockError && <div className="alert">{blockError}</div>}
@@ -608,24 +648,95 @@ export default function AdminPage() {
               <div className="block-list">
                 <h4>Bloqueios activos</h4>
                 {sortedBlocks.map((block) => (
-                  <div className="list-item block-item" key={block.id}>
-                    <div>
-                      <strong>
-                        {formatDate(block.startDate)}
-                        {dateKeyFromIso(block.startDate) !== dateKeyFromIso(block.endDate)
-                          ? ` → ${formatDate(block.endDate)}`
-                          : ""}
-                      </strong>
-                      <div className="muted-text">{block.reason ?? "Bloqueio manual"}</div>
+                  <div className="block-row" key={block.id}>
+                    <div className="list-item block-item">
+                      <div>
+                        <strong>
+                          {formatDate(block.startDate)}
+                          {dateKeyFromIso(block.startDate) !== dateKeyFromIso(block.endDate)
+                            ? ` → ${formatDate(block.endDate)}`
+                            : ""}
+                        </strong>
+                        <div className="muted-text">{block.reason ?? "Bloqueio manual"}</div>
+                      </div>
+                      <div className="block-actions">
+                        <button
+                          type="button"
+                          className="btn secondary btn-small"
+                          disabled={savingBlockId === block.id || deletingBlockId === block.id}
+                          onClick={() =>
+                            editingBlockId === block.id ? setEditingBlockId(null) : startEditingBlock(block)
+                          }
+                        >
+                          {editingBlockId === block.id ? "Fechar" : "Editar"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn secondary btn-small"
+                          disabled={deletingBlockId === block.id || savingBlockId === block.id}
+                          onClick={() => handleDeleteBlock(block.id)}
+                        >
+                          {deletingBlockId === block.id ? "A remover…" : "Desbloquear"}
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      className="btn secondary btn-small"
-                      disabled={deletingBlockId === block.id}
-                      onClick={() => handleDeleteBlock(block.id)}
-                    >
-                      {deletingBlockId === block.id ? "A remover…" : "Desbloquear"}
-                    </button>
+
+                    {editingBlockId === block.id && (
+                      <form
+                        className="stack block-edit-form"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          void handleSaveBlock(block.id);
+                        }}
+                      >
+                        <div className="field-row">
+                          <DateField
+                            id={`blockEditStart-${block.id}`}
+                            label="Desde"
+                            value={editBlockForm.startDate}
+                            onChange={(startDate) =>
+                              setEditBlockForm((current) => ({
+                                ...current,
+                                startDate,
+                                endDate: current.endDate || startDate,
+                              }))
+                            }
+                            required
+                          />
+                          <DateField
+                            id={`blockEditEnd-${block.id}`}
+                            label="Até"
+                            value={editBlockForm.endDate}
+                            onChange={(endDate) => setEditBlockForm((current) => ({ ...current, endDate }))}
+                            required
+                          />
+                        </div>
+                        <div className="field">
+                          <label htmlFor={`blockEditReason-${block.id}`}>Motivo</label>
+                          <input
+                            id={`blockEditReason-${block.id}`}
+                            value={editBlockForm.reason}
+                            placeholder="Ex: Uso pessoal, manutenção"
+                            onChange={(event) =>
+                              setEditBlockForm((current) => ({ ...current, reason: event.target.value }))
+                            }
+                          />
+                        </div>
+                        <div className="detail-inline-actions">
+                          <button
+                            type="button"
+                            className="btn secondary btn-small"
+                            disabled={savingBlockId === block.id}
+                            onClick={() => setEditingBlockId(null)}
+                          >
+                            Cancelar
+                          </button>
+                          <button type="submit" className="btn btn-small" disabled={savingBlockId === block.id}>
+                            {savingBlockId === block.id ? "A guardar…" : "Guardar alterações"}
+                          </button>
+                        </div>
+                      </form>
+                    )}
                   </div>
                 ))}
               </div>

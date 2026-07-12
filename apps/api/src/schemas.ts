@@ -56,6 +56,16 @@ export const createBlockSchema = z.object({
   reason: z.string().optional(),
 });
 
+export const updateBlockSchema = z
+  .object({
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+    reason: z.string().optional(),
+  })
+  .refine((data) => data.startDate !== undefined || data.endDate !== undefined || data.reason !== undefined, {
+    message: "Indica pelo menos um campo para atualizar",
+  });
+
 export const quoteSchema = z.object({
   propertyId: z.string(),
   checkIn: z.string(),

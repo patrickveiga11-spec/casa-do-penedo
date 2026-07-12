@@ -16,6 +16,7 @@ export interface AvailabilityCheckInput {
   checkIn: Date;
   checkOut: Date;
   excludeReservationId?: string;
+  excludeBlockId?: string;
   reservations: Pick<Reservation, "id" | "checkIn" | "checkOut" | "status" | "guestName">[];
   blocks: Pick<AvailabilityBlock, "id" | "startDate" | "endDate" | "reason">[];
 }
@@ -51,6 +52,10 @@ export function findAvailabilityConflicts(input: AvailabilityCheckInput): Availa
   }
 
   for (const block of input.blocks) {
+    if (input.excludeBlockId && block.id === input.excludeBlockId) {
+      continue;
+    }
+
     const blockStart = toDateOnly(block.startDate);
     const blockEnd = toDateOnly(block.endDate);
 

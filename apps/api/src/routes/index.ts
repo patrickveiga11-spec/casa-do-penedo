@@ -16,7 +16,7 @@ import {
 } from "../services/welcome-email.js";
 import { ensureReservationAccessCode, generateUniqueAccessCode } from "../services/access-code.js";
 import { syncGuestByEmail, syncGuestFromReservation } from "../services/guest-registry.js";
-import { createBlockSchema, createPricingRuleSchema, createReservationSchema, quoteSchema, updateReservationDetailsSchema, updateReservationPaymentSchema, updateReservationSchema } from "../schemas.js";
+import { createBlockSchema, createPricingRuleSchema, createReservationSchema, quoteSchema, updateBlockSchema, updateReservationDetailsSchema, updateReservationPaymentSchema, updateReservationSchema } from "../schemas.js";
 import { formatDate, monthBounds, nightsInRange, toDateOnly } from "../lib/dates.js";
 import { requireAdmin, verifyAdminToken } from "../lib/admin-auth.js";
 
@@ -729,6 +729,61 @@ export async function blockRoutes(app: FastifyInstance) {
     });
 
     return reply.status(201).send(block);
+  });
+
+  app.patch("/blocks/:id", { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = updateBlockSchema.parse(request.body);
+
+    const existing = await prisma.availabilityBlock.findUnique({ where: { id } });
+
+    if (!existing) {
+      return reply.status(404).send({ error: "Bloqueio não encontrado" });
+    }
+
+    const startDate = body.startDate ? toDateOnly(body.startDate) : existing.startDate;
+    const endDate = body.endDate ? toDateOnly(body.endDate) : existing.endDate;
+
+    if (endDate < startDate) {
+      return reply.status(400).send({ error: "A data de fim deve ser igual ou posterior à data de início" });
+    }
+
+    const datesChanged =
+      startDate.getTime() !== existing.startDate.getTime() || endDate.getTime() !== existing.endDate.getTime();
+
+    if (datesChanged) {
+      const [reservations, blocks] = await Promise.all([
+        prisma.reservation.findMany({ where: { propertyId: existing.propertyId } }),
+        prisma.availabilityBlock.findMany({ where: { propertyId: existing.propertyId } }),
+      ]);
+
+      const conflicts = findAvailabilityConflicts({
+        propertyId: existing.propertyId,
+        checkIn: startDate,
+        checkOut: endDate,
+        excludeBlockId: id,
+        reservations,
+        blocks,
+      });
+
+      if (conflicts.length > 0) {
+        const first = conflicts[0];
+        return reply.status(409).send({
+          error: `Conflito com ${first.type === "reservation" ? "reserva" : "bloqueio"} (${first.label}) entre ${first.startDate} e ${first.endDate}`,
+        });
+      }
+    }
+
+    const block = await prisma.availabilityBlock.update({
+      where: { id },
+      data: {
+        ...(body.startDate !== undefined ? { startDate } : {}),
+        ...(body.endDate !== undefined ? { endDate } : {}),
+        ...(body.reason !== undefined ? { reason: body.reason.trim() || "Bloqueio manual" } : {}),
+      },
+    });
+
+    return reply.send(block);
   });
 
   app.delete("/blocks/:id", { preHandler: requireAdmin }, async (request, reply) => {
