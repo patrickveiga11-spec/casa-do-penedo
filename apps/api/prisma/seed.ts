@@ -18,15 +18,33 @@ async function main() {
 
   await prisma.pricingRule.deleteMany({ where: { propertyId: property.id } });
 
-  await prisma.pricingRule.create({
-    data: {
-      propertyId: property.id,
-      name: "Estadia longa (6+ noites, -10%)",
-      priority: 1,
-      minNights: 6,
-      modifier: -10,
-      modifierType: "PERCENT",
-    },
+  await prisma.pricingRule.createMany({
+    data: [
+      {
+        propertyId: property.id,
+        name: "Estadia de 1 noite (200€)",
+        priority: 10,
+        minNights: 1,
+        modifier: 200,
+        modifierType: "PACKAGE",
+      },
+      {
+        propertyId: property.id,
+        name: "Estadia de 2 noites (250€)",
+        priority: 9,
+        minNights: 2,
+        modifier: 250,
+        modifierType: "PACKAGE",
+      },
+      {
+        propertyId: property.id,
+        name: "Estadia longa (6+ noites, -10%)",
+        priority: 1,
+        minNights: 6,
+        modifier: -10,
+        modifierType: "PERCENT",
+      },
+    ],
   });
 
   const existingReservation = await prisma.reservation.findFirst({

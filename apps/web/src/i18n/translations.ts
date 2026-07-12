@@ -58,6 +58,7 @@ export const translations = {
       nightlyDetail: "Lotação 7 pessoas",
       singleNight: "Estadia de 1 noite",
       singleNightDetail: "Qualquer dia da semana",
+      packageNights: "Pacote de {n} noites",
       minNights: "Mínimo {n} noites",
     },
     welcomeGuide: {
@@ -118,6 +119,7 @@ export const translations = {
       nightlyDetail: "Up to 7 guests",
       singleNight: "1-night stay",
       singleNightDetail: "Any day of the week",
+      packageNights: "Package of {n} nights",
       minNights: "Minimum {n} nights",
     },
     welcomeGuide: {
@@ -178,6 +180,7 @@ export const translations = {
       nightlyDetail: "Jusqu'à 7 personnes",
       singleNight: "Séjour d'1 nuit",
       singleNightDetail: "N'importe quel jour de la semaine",
+      packageNights: "Forfait {n} nuits",
       minNights: "Minimum {n} nuits",
     },
     welcomeGuide: {
@@ -238,6 +241,7 @@ export const translations = {
       nightlyDetail: "Hasta 7 personas",
       singleNight: "Estancia de 1 noche",
       singleNightDetail: "Cualquier día de la semana",
+      packageNights: "Paquete de {n} noches",
       minNights: "Mínimo {n} noches",
     },
     welcomeGuide: {

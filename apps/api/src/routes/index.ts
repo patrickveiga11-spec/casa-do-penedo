@@ -16,7 +16,7 @@ import {
 } from "../services/welcome-email.js";
 import { ensureReservationAccessCode, generateUniqueAccessCode } from "../services/access-code.js";
 import { syncGuestByEmail, syncGuestFromReservation } from "../services/guest-registry.js";
-import { createBlockSchema, createPricingRuleSchema, createReservationSchema, quoteSchema, updateBlockSchema, updateReservationDetailsSchema, updateReservationPaymentSchema, updateReservationSchema } from "../schemas.js";
+import { createBlockSchema, createPricingRuleSchema, createReservationSchema, quoteSchema, updateBlockSchema, updatePricingRuleSchema, updateReservationDetailsSchema, updateReservationPaymentSchema, updateReservationSchema } from "../schemas.js";
 import { formatDate, monthBounds, nightsInRange, toDateOnly } from "../lib/dates.js";
 import { requireAdmin, verifyAdminToken } from "../lib/admin-auth.js";
 
@@ -652,7 +652,29 @@ export async function pricingRoutes(app: FastifyInstance) {
     return reply.status(201).send(rule);
   });
 
-  app.post("/pricing/quote", async (request) => {
+  app.patch("/pricing-rules/:id", { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = updatePricingRuleSchema.parse(request.body);
+
+    const existing = await prisma.pricingRule.findUnique({ where: { id } });
+
+    if (!existing) {
+      return reply.status(404).send({ error: "Regra de tarifa não encontrada" });
+    }
+
+    if (body.isActive === undefined) {
+      return reply.status(400).send({ error: "Indica o estado da regra" });
+    }
+
+    const rule = await prisma.pricingRule.update({
+      where: { id },
+      data: { isActive: body.isActive },
+    });
+
+    return reply.send(rule);
+  });
+
+  app.post("/pricing/quote", async (request, reply) => {
     const body = quoteSchema.parse(request.body);
     const checkIn = toDateOnly(body.checkIn);
     const checkOut = toDateOnly(body.checkOut);

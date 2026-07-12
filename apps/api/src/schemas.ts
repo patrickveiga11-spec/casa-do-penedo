@@ -46,7 +46,11 @@ export const createPricingRuleSchema = z.object({
   dayOfWeek: z.number().int().min(0).max(6).optional(),
   minNights: z.number().int().positive().optional(),
   modifier: z.number(),
-  modifierType: z.enum(["PERCENT", "FIXED"]).default("PERCENT"),
+  modifierType: z.enum(["PERCENT", "FIXED", "PACKAGE"]).default("PERCENT"),
+});
+
+export const updatePricingRuleSchema = z.object({
+  isActive: z.boolean().optional(),
 });
 
 export const createBlockSchema = z.object({

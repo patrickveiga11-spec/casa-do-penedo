@@ -886,6 +886,25 @@ button {
   background: #fff;
 }
 
+.pricing-rule-item {
+  align-items: flex-start;
+}
+
+.pricing-rule-inactive {
+  opacity: 0.72;
+}
+
+.pricing-rule-status {
+  margin-top: 6px;
+}
+
+.pricing-rule-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
 .detail-access-code {
   grid-column: 1 / -1;
 }

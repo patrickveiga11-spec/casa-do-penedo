@@ -149,6 +149,8 @@ export const api = {
     request<PriceBreakdown>("/pricing/quote", { method: "POST", body: JSON.stringify(data) }),
   createPricingRule: (data: CreatePricingRuleInput) =>
     request<PricingRule>("/pricing-rules", { method: "POST", body: JSON.stringify(data), admin: true }),
+  updatePricingRule: (id: string, data: { isActive: boolean }) =>
+    request<PricingRule>(`/pricing-rules/${id}`, { method: "PATCH", body: JSON.stringify(data), admin: true }),
   getBlocks: (propertyId: string) =>
     request<AvailabilityBlock[]>(`/blocks?propertyId=${propertyId}`, { admin: true }),
   createBlock: (data: CreateBlockInput) =>
@@ -308,7 +310,7 @@ export interface CreatePricingRuleInput {
   name: string;
   priority: number;
   modifier: number;
-  modifierType: "PERCENT" | "FIXED";
+  modifierType: "PERCENT" | "FIXED" | "PACKAGE";
   dayOfWeek?: number;
   minNights?: number;
   startDate?: string;

@@ -993,7 +993,7 @@ export default function AdminPage() {
       <GuestsRegistryPanel />
 
       <div style={{ marginTop: 24 }}>
-        <PricingInfo rules={pricingRules} />
+        <PricingInfo rules={pricingRules} onRulesUpdated={() => property && loadAll(property)} />
       </div>
 
       {monthlyRevenue && <MonthlyRevenueChart data={monthlyRevenue} />}

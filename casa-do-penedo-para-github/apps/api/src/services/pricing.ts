@@ -4,7 +4,6 @@ import { eachNight, formatDate } from "../lib/dates.js";
 export const INCLUDED_GUESTS = 7;
 export const EXTRA_GUEST_FEE = 15;
 export const MAX_GUESTS = 10;
-export const SINGLE_NIGHT_RATE = 200;
 
 export function extraGuestFee(guests: number): number {
   const extraGuests = Math.max(0, Math.min(guests, MAX_GUESTS) - INCLUDED_GUESTS);
@@ -36,9 +35,54 @@ function ruleApplies(rule: PricingRule, date: Date, nightCount: number): boolean
   if (rule.startDate && date < rule.startDate) return false;
   if (rule.endDate && date > rule.endDate) return false;
   if (rule.dayOfWeek !== null && rule.dayOfWeek !== date.getDay()) return false;
-  if (rule.minNights !== null && nightCount < rule.minNights) return false;
+  if (rule.modifierType !== "PACKAGE" && rule.minNights !== null && nightCount < rule.minNights) {
+    return false;
+  }
 
   return true;
+}
+
+function findPackageRule(rules: PricingRule[], nightCount: number, referenceDate: Date): PricingRule | undefined {
+  const sortedRules = [...rules].sort((a, b) => b.priority - a.priority);
+
+  return sortedRules.find(
+    (rule) =>
+      rule.isActive &&
+      rule.modifierType === "PACKAGE" &&
+      rule.minNights === nightCount &&
+      ruleApplies(rule, referenceDate, nightCount)
+  );
+}
+
+function buildPackageBreakdown(
+  nights: Date[],
+  packageRule: PricingRule,
+  guestSurcharge: number,
+  currency: string,
+  guests: number
+): PriceBreakdown {
+  const nightCount = nights.length;
+  const packageBase = Number(packageRule.modifier);
+  const guestTotal = guestSurcharge * nightCount;
+  const subtotal = Math.round((packageBase + guestTotal) * 100) / 100;
+  const perNight = Math.round((subtotal / nightCount) * 100) / 100;
+  const appliedRules = [packageRule.name];
+  if (guestTotal > 0) {
+    appliedRules.push(`+${guestTotal}€ hóspedes extra`);
+  }
+
+  return {
+    nights: nights.map((date) => ({
+      date: formatDate(date),
+      basePrice: packageBase,
+      guestSurcharge,
+      adjustedPrice: perNight,
+      appliedRules,
+    })),
+    subtotal,
+    currency,
+    guests,
+  };
 }
 
 function applyModifier(price: number, rule: PricingRule): number {
@@ -62,31 +106,12 @@ export function calculateDynamicPrice(
   const nights = eachNight(checkIn, checkOut);
   const nightCount = nights.length;
   const guestSurcharge = extraGuestFee(guests);
-
-  if (nightCount === 1) {
-    const adjustedPrice = Math.round((SINGLE_NIGHT_RATE + guestSurcharge) * 100) / 100;
-    const appliedRules = [`Estadia de 1 noite: ${SINGLE_NIGHT_RATE}€`];
-    if (guestSurcharge > 0) {
-      appliedRules.push(`+${guestSurcharge}€ hóspedes extra`);
-    }
-
-    return {
-      nights: [
-        {
-          date: formatDate(nights[0]),
-          basePrice: SINGLE_NIGHT_RATE,
-          guestSurcharge,
-          adjustedPrice,
-          appliedRules,
-        },
-      ],
-      subtotal: adjustedPrice,
-      currency,
-      guests,
-    };
-  }
-
   const sortedRules = [...rules].sort((a, b) => b.priority - a.priority);
+
+  const packageRule = findPackageRule(sortedRules, nightCount, nights[0]);
+  if (packageRule) {
+    return buildPackageBreakdown(nights, packageRule, guestSurcharge, currency, guests);
+  }
 
   const breakdown: PriceBreakdownNight[] = nights.map((date) => {
     let adjustedPrice = nightlyRateBeforeRules(basePrice, guests);
