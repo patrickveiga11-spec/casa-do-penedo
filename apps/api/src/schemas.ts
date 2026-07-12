@@ -22,6 +22,21 @@ export const updateReservationSchema = z
     message: "Indica desconto ou valor final",
   });
 
+export const updateReservationDetailsSchema = z.object({
+  guestName: z.string().min(1).optional(),
+  guestEmail: z.string().email().nullable().optional(),
+  guestPhone: z.string().trim().min(4).optional(),
+  checkIn: z.string().optional(),
+  checkOut: z.string().optional(),
+  guests: z.number().int().min(1).max(10).optional(),
+  notes: z.string().max(4000).nullable().optional(),
+});
+
+export const updateReservationPaymentSchema = z.object({
+  paymentStatus: z.enum(["PENDING", "PARTIAL", "PAID"]),
+  amountPaid: z.number().min(0).nullable().optional(),
+});
+
 export const createPricingRuleSchema = z.object({
   propertyId: z.string(),
   name: z.string().min(1),

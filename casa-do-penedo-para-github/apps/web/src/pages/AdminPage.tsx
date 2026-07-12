@@ -17,9 +17,18 @@ import { LogoHeader } from "../components/LogoHeader";
 import { PricingInfo } from "../components/PricingInfo";
 import { CommsAlertBanner } from "../components/CommsAlertBanner";
 import { ReservationCommsIcons } from "../components/ReservationCommsIcons";
-import { ReservationCommsTimeline } from "../components/ReservationCommsTimeline";
+import { ReservationDetailPanel } from "../components/ReservationDetailPanel";
+import { WeekOverviewPanel } from "../components/WeekOverviewPanel";
 import { ReservationDatesLink } from "../components/ReservationDatesLink";
 import { formatDate, formatMoney, monthRange, dateKeyFromIso, parseDateKey, startOfMonth } from "../lib/format";
+import {
+  buildWeekOverview,
+  filterReservationsByTab,
+  PAYMENT_STATUS_LABELS,
+  paymentBadgeClass,
+  searchReservations,
+  type ReservationListTab,
+} from "../lib/reservation-filters";
 
 function currentYear() {
   return new Date().getFullYear();
@@ -74,6 +83,8 @@ export default function AdminPage() {
   const [blockNotice, setBlockNotice] = useState<string | null>(null);
   const [submittingBlock, setSubmittingBlock] = useState(false);
   const [deletingBlockId, setDeletingBlockId] = useState<string | null>(null);
+  const [reservationTab, setReservationTab] = useState<ReservationListTab>("upcoming");
+  const [reservationSearch, setReservationSearch] = useState("");
   const sortedBlocks = [...blocks].sort((a, b) =>
     dateKeyFromIso(a.startDate).localeCompare(dateKeyFromIso(b.startDate))
   );
@@ -84,11 +95,12 @@ export default function AdminPage() {
   const sortedReservations = [...reservations].sort((a, b) =>
     dateKeyFromIso(b.checkIn).localeCompare(dateKeyFromIso(a.checkIn))
   );
+  const weekOverview = buildWeekOverview(sortedReservations);
+  const tabReservations = filterReservationsByTab(sortedReservations, reservationTab);
+  const visibleReservations = searchReservations(tabReservations, reservationSearch);
   const pendingReservations = sortedReservations.filter((reservation) => reservation.status === "PENDING");
   const finalQuoteTotal =
     quoteTotal !== null ? Math.round(quoteTotal * (1 - form.discountPercent / 100) * 100) / 100 : null;
-  const detailFinalTotal =
-    detailSubtotal !== null ? Math.round(detailSubtotal * (1 - editDiscount / 100) * 100) / 100 : null;
 
   async function loadAll(selectedProperty: Property) {
     const [kpiData, revenueData, reservationData, ruleData, blockData] = await Promise.all([
@@ -205,6 +217,39 @@ export default function AdminPage() {
     }, 50);
   }
 
+  async function refreshDetailQuote(reservation: Reservation) {
+    if (!property) return;
+
+    setDetailLoading(true);
+    try {
+      const quote = await api.getQuote({
+        propertyId: property.id,
+        checkIn: dateKeyFromIso(reservation.checkIn),
+        checkOut: dateKeyFromIso(reservation.checkOut),
+        guests: reservation.guests,
+      });
+      setDetailSubtotal(quote.subtotal);
+    } catch (err) {
+      setDetailError(err instanceof Error ? err.message : "Erro ao calcular preço");
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  async function handleReservationUpdated() {
+    if (!property) return;
+
+    const previousId = selectedReservationId;
+    await loadAll(property);
+
+    if (previousId) {
+      const updated = (await api.getReservations(property.id)).find((item) => item.id === previousId);
+      if (updated) {
+        await refreshDetailQuote(updated);
+      }
+    }
+  }
+
   async function openReservationDetails(reservation: Reservation) {
     if (selectedReservationId === reservation.id) {
       setSelectedReservationId(null);
@@ -221,21 +266,7 @@ export default function AdminPage() {
     setEditDiscount(Number(reservation.discountPercent ?? 0));
     setEditFinalPrice(Number(reservation.totalPrice));
     setDetailSubtotal(null);
-    setDetailLoading(true);
-
-    try {
-      const quote = await api.getQuote({
-        propertyId: property.id,
-        checkIn: dateKeyFromIso(reservation.checkIn),
-        checkOut: dateKeyFromIso(reservation.checkOut),
-        guests: reservation.guests,
-      });
-      setDetailSubtotal(quote.subtotal);
-    } catch (err) {
-      setDetailError(err instanceof Error ? err.message : "Erro ao calcular preço");
-    } finally {
-      setDetailLoading(false);
-    }
+    await refreshDetailQuote(reservation);
   }
 
   async function handleSavePrice(reservation: Reservation) {
@@ -467,6 +498,8 @@ export default function AdminPage() {
 
       <CommsAlertBanner reservations={sortedReservations} onSelectReservation={focusReservationById} />
 
+      <WeekOverviewPanel overview={weekOverview} onSelectReservation={focusReservationById} />
+
       {kpis && (
         <section className="kpi-grid">
           <p className="kpi-month-label muted-text">Indicadores de {kpiMonthLabel}</p>
@@ -602,16 +635,47 @@ export default function AdminPage() {
 
         <section className="stack">
           <div className="panel" id="admin-reservations">
-            <h2>Reservas activas</h2>
+            <h2>Reservas</h2>
             <p className="muted-text panel-hint">
-              «Detalhes» → ver contactos, desconto e validar. «Validar» envia email final ao cliente.
+              «Detalhes» → editar dados, notas, pagamento e reenviar emails. «Validar» envia email final ao cliente.
             </p>
+            <div className="reservation-toolbar">
+              <div className="reservation-tabs">
+                <button
+                  type="button"
+                  className={reservationTab === "upcoming" ? "tab-btn active" : "tab-btn"}
+                  onClick={() => setReservationTab("upcoming")}
+                >
+                  Próximas
+                </button>
+                <button
+                  type="button"
+                  className={reservationTab === "past" ? "tab-btn active" : "tab-btn"}
+                  onClick={() => setReservationTab("past")}
+                >
+                  Anteriores
+                </button>
+              </div>
+              <input
+                className="reservation-search"
+                type="search"
+                placeholder="Pesquisar hóspede, email ou telemóvel…"
+                value={reservationSearch}
+                onChange={(event) => setReservationSearch(event.target.value)}
+              />
+            </div>
             {deleteNotice && <div className="alert success">{deleteNotice}</div>}
             {deleteError && <div className="alert">{deleteError}</div>}
-            {sortedReservations.length === 0 ? (
-              <p className="empty">Sem reservas.</p>
+            {visibleReservations.length === 0 ? (
+              <p className="empty">
+                {reservationSearch.trim()
+                  ? "Nenhuma reserva encontrada para esta pesquisa."
+                  : reservationTab === "upcoming"
+                    ? "Sem reservas futuras."
+                    : "Sem reservas anteriores."}
+              </p>
             ) : (
-              sortedReservations.map((reservation) => (
+              visibleReservations.map((reservation) => (
                 <div className="reservation-row" id={`reservation-${reservation.id}`} key={reservation.id}>
                   <div className="list-item reservation-item">
                     <div>
@@ -632,6 +696,12 @@ export default function AdminPage() {
                         )}
                         <span className={`badge ${reservation.validatedAt ? "badge-ok" : "badge-pending"}`}>
                           {reservation.validatedAt ? "Validada" : "Pendente"}
+                        </span>
+                        <span
+                          className={`badge ${paymentBadgeClass(reservation.paymentStatus ?? "PENDING")}`}
+                          title="Estado de pagamento"
+                        >
+                          {PAYMENT_STATUS_LABELS[reservation.paymentStatus ?? "PENDING"] ?? "Pendente"}
                         </span>
                         {reservation.accessCode && (
                           <span className="badge badge-access" title="Código de acesso">
@@ -684,138 +754,26 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  {selectedReservationId === reservation.id && (
-                    <div className="reservation-detail">
-                      {detailNotice && <div className="alert success">{detailNotice}</div>}
-                      {detailError && <div className="alert">{detailError}</div>}
-                      <div className="detail-grid">
-                        <div>
-                          <span className="muted-text">Email</span>
-                          <strong>{reservation.guestEmail ?? "—"}</strong>
-                        </div>
-                        <div>
-                          <span className="muted-text">Telemóvel</span>
-                          <strong>{reservation.guestPhone ?? "—"}</strong>
-                        </div>
-                        <div>
-                          <span className="muted-text">Check-in</span>
-                          <strong>{formatDate(reservation.checkIn)}</strong>
-                        </div>
-                        <div>
-                          <span className="muted-text">Check-out</span>
-                          <strong>{formatDate(reservation.checkOut)}</strong>
-                        </div>
-                        <div>
-                          <span className="muted-text">Hóspedes</span>
-                          <strong>{reservation.guests}</strong>
-                        </div>
-                        <div>
-                          <span className="muted-text">Valor final</span>
-                          <strong>{formatMoney(reservation.totalPrice, reservation.currency)}</strong>
-                        </div>
-                        <div>
-                          <span className="muted-text">Estado</span>
-                          <strong>{reservation.validatedAt ? "Validada" : "Pendente de validação"}</strong>
-                        </div>
-                        {reservation.accessCode && (
-                          <div className="detail-access-code">
-                            <span className="muted-text">Código de acesso</span>
-                            <strong className="access-code">{reservation.accessCode}</strong>
-                          </div>
-                        )}
-                      </div>
-
-                      <ReservationCommsTimeline reservation={reservation} />
-
-                      <div className="field">
-                        <label htmlFor={`discount-${reservation.id}`}>Desconto (%)</label>
-                        <input
-                          id={`discount-${reservation.id}`}
-                          type="number"
-                          min={0}
-                          max={100}
-                          step={1}
-                          value={editDiscount}
-                          onChange={(event) => {
-                            const discount = Number(event.target.value) || 0;
-                            setEditDiscount(discount);
-                            if (detailSubtotal !== null) {
-                              setEditFinalPrice(
-                                Math.round(detailSubtotal * (1 - discount / 100) * 100) / 100
-                              );
-                            }
-                          }}
-                        />
-                      </div>
-
-                      <div className="field">
-                        <label htmlFor={`final-price-${reservation.id}`}>Valor final acordado (€)</label>
-                        <input
-                          id={`final-price-${reservation.id}`}
-                          type="number"
-                          min={0}
-                          step={0.01}
-                          value={editFinalPrice ?? ""}
-                          onChange={(event) =>
-                            setEditFinalPrice(
-                              event.target.value === "" ? null : Number(event.target.value)
-                            )
-                          }
-                        />
-                        <p className="muted-text">
-                          Podes usar o desconto acima ou indicar directamente o valor acordado com o cliente.
-                        </p>
-                      </div>
-
-                      {detailLoading ? (
-                        <p className="muted-text">A calcular preço…</p>
-                      ) : detailSubtotal !== null ? (
-                        <div className="quote-box">
-                          Valor calculado pela plataforma
-                          <strong>{formatMoney(detailSubtotal, reservation.currency)}</strong>
-                          {editDiscount > 0 && (
-                            <>
-                              Total com {editDiscount}% de desconto
-                              <strong>
-                                {formatMoney(detailFinalTotal ?? detailSubtotal, reservation.currency)}
-                              </strong>
-                            </>
-                          )}
-                        </div>
-                      ) : null}
-
-                      <div className="detail-actions">
-                        <button
-                          type="button"
-                          className="btn secondary"
-                          disabled={
-                            savingDiscountId === reservation.id ||
-                            detailLoading ||
-                            editFinalPrice === null
-                          }
-                          onClick={() => handleSavePrice(reservation)}
-                        >
-                          {savingDiscountId === reservation.id ? "A guardar…" : "Guardar preço"}
-                        </button>
-                        {!reservation.validatedAt && (
-                          <button
-                            type="button"
-                            className="btn"
-                            disabled={
-                              validatingId === reservation.id ||
-                              !reservation.guestEmail ||
-                              savingDiscountId === reservation.id
-                            }
-                            onClick={() => handleValidateReservation(reservation)}
-                          >
-                            {validatingId === reservation.id ? "A validar…" : "Validar reserva"}
-                          </button>
-                        )}
-                      </div>
-                      {!reservation.guestEmail && !reservation.validatedAt && (
-                        <p className="muted-text">Sem email — não é possível validar.</p>
-                      )}
-                    </div>
+                  {selectedReservationId === reservation.id && property && (
+                    <ReservationDetailPanel
+                      reservation={reservation}
+                      property={property}
+                      editDiscount={editDiscount}
+                      editFinalPrice={editFinalPrice}
+                      detailSubtotal={detailSubtotal}
+                      detailLoading={detailLoading}
+                      detailNotice={detailNotice}
+                      detailError={detailError}
+                      savingDiscountId={savingDiscountId}
+                      validatingId={validatingId}
+                      onEditDiscountChange={setEditDiscount}
+                      onEditFinalPriceChange={setEditFinalPrice}
+                      onSavePrice={() => handleSavePrice(reservation)}
+                      onValidate={() => handleValidateReservation(reservation)}
+                      onUpdated={handleReservationUpdated}
+                      onNotice={setDetailNotice}
+                      onError={setDetailError}
+                    />
                   )}
                 </div>
               ))

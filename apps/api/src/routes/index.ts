@@ -7,15 +7,16 @@ import {
   sendReservationCancellation,
   sendReservationConfirmation,
   sendReservationFinalConfirmation,
+  sendWelcomeGuideEmail,
 } from "../services/email.js";
 import {
   maybeRunDailyWelcomeEmails,
   processWelcomeEmailAfterValidation,
   shouldSendWelcomeOnValidation,
 } from "../services/welcome-email.js";
-import { generateUniqueAccessCode } from "../services/access-code.js";
+import { ensureReservationAccessCode, generateUniqueAccessCode } from "../services/access-code.js";
 import { syncGuestByEmail, syncGuestFromReservation } from "../services/guest-registry.js";
-import { createBlockSchema, createPricingRuleSchema, createReservationSchema, quoteSchema, updateReservationSchema } from "../schemas.js";
+import { createBlockSchema, createPricingRuleSchema, createReservationSchema, quoteSchema, updateReservationDetailsSchema, updateReservationPaymentSchema, updateReservationSchema } from "../schemas.js";
 import { formatDate, monthBounds, nightsInRange, toDateOnly } from "../lib/dates.js";
 import { requireAdmin, verifyAdminToken } from "../lib/admin-auth.js";
 
@@ -273,6 +274,192 @@ export async function reservationRoutes(app: FastifyInstance) {
       ...reservation,
       subtotalBeforeDiscount: pricing.subtotal,
     });
+  });
+
+  app.patch("/reservations/:id/details", { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = updateReservationDetailsSchema.parse(request.body);
+
+    const existing = await prisma.reservation.findUnique({
+      where: { id },
+      include: { property: true },
+    });
+
+    if (!existing) {
+      return reply.status(404).send({ error: "Reserva não encontrada" });
+    }
+
+    const checkIn = body.checkIn ? toDateOnly(body.checkIn) : existing.checkIn;
+    const checkOut = body.checkOut ? toDateOnly(body.checkOut) : existing.checkOut;
+    const guests = body.guests ?? existing.guests;
+
+    if (checkOut <= checkIn) {
+      return reply.status(400).send({ error: "Check-out deve ser posterior ao check-in" });
+    }
+
+    if (guests > existing.property.maxGuests) {
+      return reply.status(400).send({ error: `Máximo de ${existing.property.maxGuests} hóspedes` });
+    }
+
+    const datesChanged =
+      checkIn.getTime() !== existing.checkIn.getTime() || checkOut.getTime() !== existing.checkOut.getTime();
+
+    if (datesChanged) {
+      const [reservations, blocks] = await Promise.all([
+        prisma.reservation.findMany({ where: { propertyId: existing.propertyId } }),
+        prisma.availabilityBlock.findMany({ where: { propertyId: existing.propertyId } }),
+      ]);
+
+      try {
+        assertAvailable({
+          propertyId: existing.propertyId,
+          checkIn,
+          checkOut,
+          excludeReservationId: id,
+          reservations,
+          blocks,
+        });
+      } catch (error) {
+        return reply.status(409).send({
+          error: error instanceof Error ? error.message : "Conflito de disponibilidade",
+          conflicts: findAvailabilityConflicts({
+            propertyId: existing.propertyId,
+            checkIn,
+            checkOut,
+            excludeReservationId: id,
+            reservations,
+            blocks,
+          }),
+        });
+      }
+    }
+
+    const reservation = await prisma.reservation.update({
+      where: { id },
+      data: {
+        ...(body.guestName !== undefined ? { guestName: body.guestName } : {}),
+        ...(body.guestEmail !== undefined ? { guestEmail: body.guestEmail } : {}),
+        ...(body.guestPhone !== undefined ? { guestPhone: body.guestPhone } : {}),
+        ...(body.checkIn !== undefined ? { checkIn } : {}),
+        ...(body.checkOut !== undefined ? { checkOut } : {}),
+        ...(body.guests !== undefined ? { guests } : {}),
+        ...(body.notes !== undefined ? { notes: body.notes } : {}),
+      },
+      include: { property: true },
+    });
+
+    void syncGuestFromReservation(reservation).catch((error) => {
+      console.warn("[guest-registry:sync]", error);
+    });
+
+    return reply.send(reservation);
+  });
+
+  app.patch("/reservations/:id/payment", { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = updateReservationPaymentSchema.parse(request.body);
+
+    const existing = await prisma.reservation.findUnique({ where: { id } });
+
+    if (!existing) {
+      return reply.status(404).send({ error: "Reserva não encontrada" });
+    }
+
+    const reservation = await prisma.reservation.update({
+      where: { id },
+      data: {
+        paymentStatus: body.paymentStatus,
+        amountPaid: body.amountPaid ?? null,
+      },
+      include: { property: true },
+    });
+
+    return reply.send(reservation);
+  });
+
+  app.post("/reservations/:id/resend-confirmation", { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const existing = await prisma.reservation.findUnique({
+      where: { id },
+      include: { property: true },
+    });
+
+    if (!existing) {
+      return reply.status(404).send({ error: "Reserva não encontrada" });
+    }
+
+    if (!existing.guestEmail) {
+      return reply.status(400).send({ error: "Reserva sem email do hóspede" });
+    }
+
+    let emailResult;
+
+    if (existing.validatedAt) {
+      const accessCode = await ensureReservationAccessCode(existing);
+      emailResult = await sendReservationFinalConfirmation(
+        {
+          reservation: { ...existing, accessCode },
+          property: existing.property,
+        },
+        { includeWelcomeGuide: false }
+      );
+    } else {
+      emailResult = await sendReservationConfirmation({
+        reservation: existing,
+        property: existing.property,
+      });
+    }
+
+    if (!emailResult.sent) {
+      return reply.status(502).send({
+        error: emailResult.reason ?? "Não foi possível enviar o email",
+        emailSent: false,
+      });
+    }
+
+    return reply.send({ success: true, emailSent: true, type: existing.validatedAt ? "final" : "provisional" });
+  });
+
+  app.post("/reservations/:id/resend-welcome", { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const existing = await prisma.reservation.findUnique({
+      where: { id },
+      include: { property: true },
+    });
+
+    if (!existing) {
+      return reply.status(404).send({ error: "Reserva não encontrada" });
+    }
+
+    if (!existing.validatedAt) {
+      return reply.status(400).send({ error: "Reserva ainda não validada" });
+    }
+
+    if (!existing.guestEmail) {
+      return reply.status(400).send({ error: "Reserva sem email do hóspede" });
+    }
+
+    const accessCode = await ensureReservationAccessCode(existing);
+    const emailResult = await sendWelcomeGuideEmail({
+      reservation: { ...existing, accessCode },
+      property: existing.property,
+    });
+
+    if (!emailResult.sent) {
+      return reply.status(502).send({
+        error: emailResult.reason ?? "Não foi possível enviar o email",
+        emailSent: false,
+      });
+    }
+
+    await prisma.reservation.update({
+      where: { id },
+      data: { welcomeEmailSentAt: new Date() },
+    });
+
+    return reply.send({ success: true, emailSent: true });
   });
 
   app.post("/reservations/:id/validate", { preHandler: requireAdmin }, async (request, reply) => {

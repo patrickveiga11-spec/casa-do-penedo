@@ -23,6 +23,12 @@ enum ReservationStatus {
   CANCELLED
 }
 
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+}
+
 enum SyncStatus {
   IDLE
   SYNCING
@@ -81,6 +87,8 @@ model Reservation {
   discountPercent Decimal?          @db.Decimal(5, 2)
   currency        String            @default("EUR")
   status          ReservationStatus @default(PENDING)
+  paymentStatus   PaymentStatus     @default(PENDING)
+  amountPaid      Decimal?          @db.Decimal(10, 2)
   notes           String?
   validatedAt     DateTime?
   welcomeEmailSentAt DateTime?

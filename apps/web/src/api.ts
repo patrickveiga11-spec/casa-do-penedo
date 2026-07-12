@@ -96,6 +96,42 @@ export const api = {
       admin: true,
       body: JSON.stringify(data),
     }),
+  updateReservationDetails: (
+    id: string,
+    data: {
+      guestName?: string;
+      guestEmail?: string | null;
+      guestPhone?: string;
+      checkIn?: string;
+      checkOut?: string;
+      guests?: number;
+      notes?: string | null;
+    }
+  ) =>
+    request<Reservation>(`/reservations/${id}/details`, {
+      method: "PATCH",
+      admin: true,
+      body: JSON.stringify(data),
+    }),
+  updateReservationPayment: (
+    id: string,
+    data: { paymentStatus: "PENDING" | "PARTIAL" | "PAID"; amountPaid?: number | null }
+  ) =>
+    request<Reservation>(`/reservations/${id}/payment`, {
+      method: "PATCH",
+      admin: true,
+      body: JSON.stringify(data),
+    }),
+  resendConfirmationEmail: (id: string) =>
+    request<{ success: boolean; emailSent: boolean; type: "final" | "provisional" }>(
+      `/reservations/${id}/resend-confirmation`,
+      { method: "POST", admin: true }
+    ),
+  resendWelcomeEmail: (id: string) =>
+    request<{ success: boolean; emailSent: boolean }>(`/reservations/${id}/resend-welcome`, {
+      method: "POST",
+      admin: true,
+    }),
   validateReservation: (id: string) =>
     request<
       Reservation & {
@@ -176,6 +212,8 @@ export interface Reservation {
   discountPercent?: string | null;
   currency: string;
   status: string;
+  paymentStatus?: string;
+  amountPaid?: string | null;
   notes?: string | null;
   validatedAt?: string | null;
   welcomeEmailSentAt?: string | null;
