@@ -17,18 +17,30 @@ function formatRuleBadge(rule: PricingRule) {
 }
 
 function formatRuleDetail(rule: PricingRule, publicPage: boolean, p: ReturnType<typeof useLanguage>["t"]["pricing"] | null) {
+  const dateRange =
+    rule.startDate && rule.endDate
+      ? `${rule.startDate.slice(0, 10).split("-").reverse().join("/")} – ${rule.endDate.slice(0, 10).split("-").reverse().join("/")}`
+      : null;
+
   if (rule.modifierType === "PACKAGE" && rule.minNights) {
     if (rule.minNights === 1) {
-      return publicPage ? p!.singleNightDetail : "Qualquer dia da semana";
+      return publicPage ? p!.singleNightDetail : dateRange ?? "Qualquer dia da semana";
     }
 
-    return publicPage
+    const packageLabel = publicPage
       ? interpolate(p!.packageNights, { n: rule.minNights })
       : `Pacote de ${rule.minNights} noites`;
+
+    return dateRange ? `${packageLabel} · ${dateRange}` : packageLabel;
   }
 
   if (rule.minNights) {
-    return publicPage ? interpolate(p!.minNights, { n: rule.minNights }) : `Mínimo ${rule.minNights} noites`;
+    const minLabel = publicPage ? interpolate(p!.minNights, { n: rule.minNights }) : `Mínimo ${rule.minNights} noites`;
+    return dateRange ? `${minLabel} · ${dateRange}` : minLabel;
+  }
+
+  if (dateRange) {
+    return dateRange;
   }
 
   return null;
@@ -61,7 +73,9 @@ export function PricingInfo({
   const [togglingRuleId, setTogglingRuleId] = useState<string | null>(null);
   const [toggleError, setToggleError] = useState<string | null>(null);
 
-  const visibleRules = sortRules(publicPage ? rules.filter((rule) => rule.isActive) : rules);
+  const visibleRules = sortRules(
+    publicPage ? rules.filter((rule) => rule.isActive && rule.showOnPublicPage !== false) : rules
+  );
 
   async function handleToggleRule(rule: PricingRule) {
     if (!onRulesUpdated) return;
@@ -113,6 +127,11 @@ export function PricingInfo({
                     <span className={`badge ${rule.isActive ? "badge-ok" : "badge-pending"}`}>
                       {rule.isActive ? "Activa" : "Suspensa"}
                     </span>
+                    {rule.showOnPublicPage === false && (
+                      <span className="badge badge-access" title="Não visível na página pública">
+                        Oculta no público
+                      </span>
+                    )}
                   </div>
                 )}
               </div>

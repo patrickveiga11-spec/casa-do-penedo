@@ -1,5 +1,6 @@
 import type { PricingRule } from "@prisma/client";
 import { eachNight, formatDate } from "../lib/dates.js";
+import { calculateSummer2027Price, isStayFullyInSummer2027, isSummer2027Rule } from "./seasonal-pricing.js";
 
 export const INCLUDED_GUESTS = 7;
 export const EXTRA_GUEST_FEE = 15;
@@ -119,7 +120,16 @@ export function calculateDynamicPrice(
   const guestSurcharge = extraGuestFee(guests);
   const sortedRules = [...rules].sort((a, b) => b.priority - a.priority);
 
-  const packageRule = findPackageRule(sortedRules, nightCount, nights[0]);
+  const summerPrice = calculateSummer2027Price(nights, sortedRules, currency, guests);
+  if (summerPrice) {
+    return summerPrice;
+  }
+
+  const standardRules = isStayFullyInSummer2027(nights)
+    ? sortedRules.filter((rule) => !isSummer2027Rule(rule))
+    : sortedRules;
+
+  const packageRule = findPackageRule(standardRules, nightCount, nights[0]);
   if (packageRule) {
     return buildPackageBreakdown(nights, packageRule, guestSurcharge, currency, guests);
   }
@@ -132,7 +142,7 @@ export function calculateDynamicPrice(
       appliedRules.push(`+${guestSurcharge}€ hóspedes extra`);
     }
 
-    for (const rule of sortedRules) {
+    for (const rule of standardRules) {
       if (ruleApplies(rule, date, nightCount)) {
         adjustedPrice = applyModifier(adjustedPrice, rule);
         appliedRules.push(rule.name);

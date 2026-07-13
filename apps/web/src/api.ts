@@ -252,6 +252,7 @@ export interface PricingRule {
   startDate: string | null;
   endDate: string | null;
   isActive: boolean;
+  showOnPublicPage?: boolean;
 }
 
 export interface Kpis {

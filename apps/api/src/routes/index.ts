@@ -625,11 +625,18 @@ function anonymizeReservation<
 export async function pricingRoutes(app: FastifyInstance) {
   app.get("/pricing-rules", async (request) => {
     const { propertyId } = request.query as { propertyId?: string };
+    const isAdmin = verifyAdminToken(request.headers.authorization);
 
-    return prisma.pricingRule.findMany({
+    const rules = await prisma.pricingRule.findMany({
       where: { propertyId },
       orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
     });
+
+    if (isAdmin) {
+      return rules;
+    }
+
+    return rules.filter((rule) => rule.showOnPublicPage);
   });
 
   app.post("/pricing-rules", { preHandler: requireAdmin }, async (request, reply) => {

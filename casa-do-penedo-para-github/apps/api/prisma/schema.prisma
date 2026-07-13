@@ -122,6 +122,7 @@ model PricingRule {
   name        String
   priority    Int      @default(0)
   isActive    Boolean  @default(true)
+  showOnPublicPage Boolean @default(true)
   startDate   DateTime? @db.Date
   endDate     DateTime? @db.Date
   dayOfWeek   Int?
