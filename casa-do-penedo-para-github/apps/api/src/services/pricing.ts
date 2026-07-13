@@ -32,12 +32,25 @@ export interface PriceBreakdown {
 function ruleApplies(rule: PricingRule, date: Date, nightCount: number): boolean {
   if (!rule.isActive) return false;
 
+  if (rule.modifierType === "PACKAGE") {
+    return false;
+  }
+
   if (rule.startDate && date < rule.startDate) return false;
   if (rule.endDate && date > rule.endDate) return false;
   if (rule.dayOfWeek !== null && rule.dayOfWeek !== date.getDay()) return false;
-  if (rule.modifierType !== "PACKAGE" && rule.minNights !== null && nightCount < rule.minNights) {
-    return false;
-  }
+  if (rule.minNights !== null && nightCount < rule.minNights) return false;
+
+  return true;
+}
+
+function packageRuleApplies(rule: PricingRule, nightCount: number, referenceDate: Date): boolean {
+  if (!rule.isActive || rule.modifierType !== "PACKAGE") return false;
+  if (rule.minNights !== nightCount) return false;
+
+  if (rule.startDate && referenceDate < rule.startDate) return false;
+  if (rule.endDate && referenceDate > rule.endDate) return false;
+  if (rule.dayOfWeek !== null && rule.dayOfWeek !== referenceDate.getDay()) return false;
 
   return true;
 }
@@ -45,13 +58,7 @@ function ruleApplies(rule: PricingRule, date: Date, nightCount: number): boolean
 function findPackageRule(rules: PricingRule[], nightCount: number, referenceDate: Date): PricingRule | undefined {
   const sortedRules = [...rules].sort((a, b) => b.priority - a.priority);
 
-  return sortedRules.find(
-    (rule) =>
-      rule.isActive &&
-      rule.modifierType === "PACKAGE" &&
-      rule.minNights === nightCount &&
-      ruleApplies(rule, referenceDate, nightCount)
-  );
+  return sortedRules.find((rule) => packageRuleApplies(rule, nightCount, referenceDate));
 }
 
 function buildPackageBreakdown(
@@ -90,6 +97,10 @@ function applyModifier(price: number, rule: PricingRule): number {
 
   if (rule.modifierType === "FIXED") {
     return Math.max(0, price + modifier);
+  }
+
+  if (rule.modifierType === "PACKAGE") {
+    return Math.max(0, modifier);
   }
 
   return Math.max(0, price * (1 + modifier / 100));
