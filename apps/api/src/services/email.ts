@@ -135,6 +135,41 @@ function parseFromAddress(from: string) {
   return { name: "Casa do Penedo", email: from.trim() };
 }
 
+function parseEmailList(value: string | undefined): string[] {
+  if (!value) {
+    return [];
+  }
+
+  const recipients: string[] = [];
+  const seen = new Set<string>();
+
+  for (const part of value.split(/[;,]/)) {
+    const email = part.trim();
+    const key = email.toLowerCase();
+    if (!email || seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    recipients.push(email);
+  }
+
+  return recipients;
+}
+
+function getOwnerNotificationRecipients(): string[] {
+  const explicit = parseEmailList(process.env.OWNER_NOTIFICATION_EMAILS?.trim());
+  if (explicit.length > 0) {
+    return explicit;
+  }
+
+  return parseEmailList(process.env.OWNER_EMAIL?.trim());
+}
+
+function getPrimaryOwnerEmail(): string | undefined {
+  return getOwnerNotificationRecipients()[0];
+}
+
 function buildEmailContent({ reservation, property }: ReservationEmailInput) {
   const checkIn = formatDate(reservation.checkIn);
   const checkOut = formatDate(reservation.checkOut);
@@ -339,6 +374,43 @@ function buildWelcomeGuideEmailContent(
   return { subject, text, html };
 }
 
+function buildThankYouEmailContent({ reservation, property }: ReservationEmailInput) {
+  const checkIn = formatDate(reservation.checkIn);
+  const checkOut = formatDate(reservation.checkOut);
+
+  const subject = `Obrigado pela visita — ${property.name}`;
+
+  const text = [
+    `Olá ${reservation.guestName},`,
+    "",
+    "Esperamos que tudo tenha corrido bem durante a vossa estadia e que tenham desfrutado da nossa casa.",
+    "",
+    `A vossa visita: ${checkIn} → ${checkOut}`,
+    "",
+    "Foi um prazer receber-vos. Esperamos voltar a ver-vos em breve na Casa do Penedo.",
+    "",
+    "Até já,",
+    "Casa do Penedo",
+  ].join("\n");
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2933; max-width: 560px;">
+      <h2 style="color: #2d6a4f;">Obrigado pela visita</h2>
+      <p>Olá <strong>${reservation.guestName}</strong>,</p>
+      <p>Esperamos que tudo tenha corrido bem durante a vossa estadia e que tenham desfrutado da nossa casa.</p>
+      <table style="width: 100%; border-collapse: collapse; margin: 24px 0;">
+        <tr><td style="padding: 8px 0; color: #6b7280;">Check-in</td><td style="padding: 8px 0;"><strong>${checkIn}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #6b7280;">Check-out</td><td style="padding: 8px 0;"><strong>${checkOut}</strong></td></tr>
+      </table>
+      <p>Foi um prazer receber-vos. Esperamos voltar a ver-vos em breve na <strong>${property.name}</strong>.</p>
+      <p style="margin-top: 24px;">Até já,</p>
+      <p style="color: #6b7280;">Casa do Penedo</p>
+    </div>
+  `;
+
+  return { subject, text, html };
+}
+
 function buildCancellationEmailContent({ reservation, property }: ReservationEmailInput) {
   const checkIn = formatDate(reservation.checkIn);
   const checkOut = formatDate(reservation.checkOut);
@@ -378,7 +450,7 @@ function buildCancellationEmailContent({ reservation, property }: ReservationEma
 }
 
 function getReplyToAddress() {
-  const ownerEmail = process.env.OWNER_EMAIL?.trim();
+  const ownerEmail = getPrimaryOwnerEmail();
   if (!ownerEmail) {
     return undefined;
   }
@@ -459,7 +531,7 @@ async function sendViaBrevoApi(payload: EmailPayload): Promise<EmailSendResult> 
   }
 
   const sender = await resolveBrevoSender(apiKey);
-  const ownerEmail = process.env.OWNER_EMAIL?.trim();
+  const ownerEmail = getPrimaryOwnerEmail();
   const replyTo = payload.replyTo ?? getReplyToAddress();
   const bcc =
     shouldIncludeOwnerBcc(payload) && ownerEmail && ownerEmail !== payload.to
@@ -532,7 +604,7 @@ async function sendViaSmtp(payload: EmailPayload): Promise<EmailSendResult> {
   }
 
   const from = getFromAddress();
-  const ownerEmail = process.env.OWNER_EMAIL?.trim();
+  const ownerEmail = getPrimaryOwnerEmail();
   const replyTo = getReplyToAddress();
   const transport = createSmtpTransport();
 
@@ -623,10 +695,10 @@ export async function sendReservationConfirmation(input: ReservationEmailInput):
 export async function sendOwnerNewReservationNotification(
   input: ReservationEmailInput
 ): Promise<EmailSendResult> {
-  const ownerEmail = process.env.OWNER_EMAIL?.trim();
+  const ownerRecipients = getOwnerNotificationRecipients();
 
-  if (!ownerEmail) {
-    return { sent: false, reason: "OWNER_EMAIL em falta" };
+  if (ownerRecipients.length === 0) {
+    return { sent: false, reason: "OWNER_EMAIL ou OWNER_NOTIFICATION_EMAILS em falta" };
   }
 
   const configError = getEmailConfigError();
@@ -634,7 +706,7 @@ export async function sendOwnerNewReservationNotification(
 
   if (configError) {
     console.log("[email:preview]", configError);
-    console.log(`Para: ${ownerEmail}`);
+    console.log(`Para: ${ownerRecipients.join(", ")}`);
     console.log(`Assunto: ${subject}`);
     console.log(text);
     return { sent: false, reason: configError };
@@ -645,26 +717,54 @@ export async function sendOwnerNewReservationNotification(
   const sender = apiKey ?
     await resolveBrevoSender(apiKey)
   : { email: fallbackSender.email, name: fallbackSender.name };
-  const textOnly = shouldUseTextOnlyOwnerEmail(ownerEmail, sender.email);
   const guestReply =
     input.reservation.guestEmail?.trim() ?
       { name: input.reservation.guestName, email: input.reservation.guestEmail.trim() }
     : undefined;
 
-  return sendEmail({
-    to: ownerEmail,
-    toName: "Casa do Penedo",
-    subject,
-    text,
-    html: textOnly ? undefined : html,
-    textOnly,
-    tags: ["reserva", "gestao"],
-    includeOwnerBcc: false,
-    replyTo: guestReply,
-    headers: {
-      "Auto-Submitted": "auto-generated",
-    },
-  });
+  const results = await Promise.all(
+    ownerRecipients.map(async (ownerEmail) => {
+      const textOnly = shouldUseTextOnlyOwnerEmail(ownerEmail, sender.email);
+      const result = await sendEmail({
+        to: ownerEmail,
+        toName: "Casa do Penedo",
+        subject,
+        text,
+        html: textOnly ? undefined : html,
+        textOnly,
+        tags: ["reserva", "gestao"],
+        includeOwnerBcc: false,
+        replyTo: guestReply,
+        headers: {
+          "Auto-Submitted": "auto-generated",
+        },
+      });
+
+      if (result.sent) {
+        console.log(`[email:owner-notification] sent → ${ownerEmail}`);
+      } else {
+        console.warn(
+          `[email:owner-notification] failed → ${ownerEmail}: ${result.reason ?? "erro desconhecido"}`
+        );
+      }
+
+      return { ownerEmail, result };
+    })
+  );
+
+  const sentCount = results.filter((item) => item.result.sent).length;
+  if (sentCount === results.length) {
+    return { sent: true };
+  }
+
+  const failures = results
+    .filter((item) => !item.result.sent)
+    .map((item) => `${item.ownerEmail}: ${item.result.reason ?? "erro desconhecido"}`);
+
+  return {
+    sent: sentCount > 0,
+    reason: failures.join(" | "),
+  };
 }
 
 export async function sendReservationFinalConfirmation(
@@ -773,6 +873,35 @@ export async function sendWelcomeGuideEmail(input: ReservationEmailInput): Promi
     html,
     attachments: attachments.length > 0 ? attachments : undefined,
     tags: ["reserva", "cliente", "boas-vindas"],
+    includeOwnerBcc: false,
+  });
+}
+
+export async function sendThankYouEmail(input: ReservationEmailInput): Promise<EmailSendResult> {
+  const email = input.reservation.guestEmail;
+
+  if (!email) {
+    return { sent: false, reason: "Reserva sem email do hóspede" };
+  }
+
+  const configError = getEmailConfigError();
+  const { subject, text, html } = buildThankYouEmailContent(input);
+
+  if (configError) {
+    console.log("[email:preview]", configError);
+    console.log(`Para: ${email}`);
+    console.log(`Assunto: ${subject}`);
+    console.log(text);
+    return { sent: false, reason: configError };
+  }
+
+  return sendEmail({
+    to: email,
+    toName: input.reservation.guestName,
+    subject,
+    text,
+    html,
+    tags: ["reserva", "cliente", "agradecimento"],
     includeOwnerBcc: false,
   });
 }

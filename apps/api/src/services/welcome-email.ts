@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma.js";
 import { daysUntilCheckIn, getDateKeyInTimeZone, addDaysToDateKey, toDateOnly } from "../lib/dates.js";
 import { sendWelcomeGuideEmail } from "./email.js";
 import { ensureReservationAccessCode } from "./access-code.js";
+import { processScheduledThankYouEmails } from "./thank-you-email.js";
 
 const WELCOME_DAYS_BEFORE = 2;
 const ACTIVE_STATUSES: ReservationStatus[] = ["CONFIRMED", "CHECKED_IN"];
@@ -110,7 +111,7 @@ function getLisbonHour(date = new Date()): number {
   );
 }
 
-/** Envia guias pendentes quando abre a gestão após as 9h (sem precisar de cron no Render). */
+/** Envia emails pendentes quando abre a gestão após as 9h (sem precisar de cron no Render). */
 export async function maybeRunDailyWelcomeEmails(from = new Date()) {
   const todayKey = getDateKeyInTimeZone(from);
 
@@ -123,5 +124,11 @@ export async function maybeRunDailyWelcomeEmails(from = new Date()) {
   }
 
   lastDailyWelcomeRunKey = todayKey;
-  return processScheduledWelcomeEmails(from);
+
+  const [welcome, thankYou] = await Promise.all([
+    processScheduledWelcomeEmails(from),
+    processScheduledThankYouEmails(from),
+  ]);
+
+  return { welcome, thankYou };
 }

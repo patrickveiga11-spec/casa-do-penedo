@@ -221,6 +221,7 @@ export interface Reservation {
   notes?: string | null;
   validatedAt?: string | null;
   welcomeEmailSentAt?: string | null;
+  thankYouEmailSentAt?: string | null;
   createdAt?: string | null;
   accessCode?: string | null;
   emailSent?: boolean;

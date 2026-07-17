@@ -2,14 +2,15 @@ import { dateKeyFromIso, formatDate, parseDateKey } from "./format";
 
 export type CommStatus = "sent" | "scheduled" | "pending" | "unavailable";
 
-export interface CommStep {
-  key: "provisional" | "confirmation" | "welcome";
+export type CommStep = {
+  key: "provisional" | "confirmation" | "welcome" | "thankYou";
   label: string;
   status: CommStatus;
   detail: string;
-}
+};
 
 const WELCOME_DAYS_BEFORE = 2;
+const THANK_YOU_DAYS_AFTER = 1;
 
 function formatDateTime(iso: string) {
   const date = new Date(iso);
@@ -46,7 +47,9 @@ export function buildReservationComms(reservation: {
   createdAt?: string | null;
   validatedAt?: string | null;
   welcomeEmailSentAt?: string | null;
+  thankYouEmailSentAt?: string | null;
   checkIn: string;
+  checkOut: string;
 }): CommStep[] {
   const hasEmail = Boolean(reservation.guestEmail?.trim());
 
@@ -105,7 +108,45 @@ export function buildReservationComms(reservation: {
     detail: welcomeDetail,
   };
 
-  return [provisional, confirmation, welcome];
+  let thankYouStatus: CommStatus = "pending";
+  let thankYouDetail = "Pendente";
+
+  if (!hasEmail) {
+    thankYouStatus = "unavailable";
+    thankYouDetail = "Sem email do hóspede";
+  } else if (reservation.thankYouEmailSentAt) {
+    thankYouStatus = "sent";
+    thankYouDetail = `Enviado em ${formatDateTime(reservation.thankYouEmailSentAt)}`;
+  } else if (!reservation.validatedAt) {
+    thankYouStatus = "pending";
+    thankYouDetail = "Após confirmação da reserva";
+  } else {
+    const scheduleDay = thankYouScheduleDateKey(reservation.checkOut);
+    const scheduleLabel = `${formatDate(toDateKey(scheduleDay))} às 9h`;
+    const daysSinceCheckout = -daysUntilCheckIn(reservation.checkOut);
+
+    if (daysSinceCheckout >= THANK_YOU_DAYS_AFTER) {
+      thankYouStatus = "scheduled";
+      thankYouDetail = "Envio automático em breve (1 dia após o check-out)";
+    } else {
+      thankYouStatus = "scheduled";
+      thankYouDetail = `Agendado para ${scheduleLabel}`;
+    }
+  }
+
+  const thankYou: CommStep = {
+    key: "thankYou",
+    label: "Agradecimento pós-estadia",
+    status: thankYouStatus,
+    detail: thankYouDetail,
+  };
+
+  return [provisional, confirmation, welcome, thankYou];
+}
+
+function thankYouScheduleDateKey(checkOut: string) {
+  const checkOutDate = parseDateKey(dateKeyFromIso(checkOut));
+  return addDays(checkOutDate, THANK_YOU_DAYS_AFTER);
 }
 
 export function getWelcomeGuidesDue(reservations: Array<{

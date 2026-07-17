@@ -92,6 +92,7 @@ model Reservation {
   notes           String?
   validatedAt     DateTime?
   welcomeEmailSentAt DateTime?
+  thankYouEmailSentAt DateTime?
   accessCode      String?           @unique
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt

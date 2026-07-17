@@ -5,6 +5,7 @@ const STEP_TITLES: Record<string, string> = {
   provisional: "Reserva provisória",
   confirmation: "Confirmação final",
   welcome: "Guia de boas-vindas",
+  thankYou: "Agradecimento pós-estadia",
 };
 
 function statusTitle(status: CommStatus) {
