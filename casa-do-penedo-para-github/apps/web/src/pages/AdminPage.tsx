@@ -34,10 +34,6 @@ function currentYear() {
   return new Date().getFullYear();
 }
 
-function isInCurrentYear(date: Date) {
-  return date.getFullYear() === currentYear();
-}
-
 export default function AdminPage() {
   const [property, setProperty] = useState<Property | null>(null);
   const [kpis, setKpis] = useState<Kpis | null>(null);
@@ -564,7 +560,7 @@ export default function AdminPage() {
 
       <div className="layout">
         <section className="panel" id="admin-calendar">
-          <h2>Calendário {currentYear()}</h2>
+          <h2>Calendário {calendarMonth.getFullYear()}</h2>
           <CalendarView
             reservations={reservations}
             blocks={blocks}
@@ -575,28 +571,14 @@ export default function AdminPage() {
               setCalendarFocusRange(undefined);
               setCalendarMonth(startOfMonth(new Date()));
             }}
-            onPrevMonth={
-              isInCurrentYear(calendarMonth) && calendarMonth.getMonth() === 0
-                ? undefined
-                : () => {
-                    setCalendarFocusRange(undefined);
-                    const next = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1);
-                    setCalendarMonth(
-                      isInCurrentYear(next) ? next : startOfMonth(new Date(currentYear(), 11, 1))
-                    );
-                  }
-            }
-            onNextMonth={
-              isInCurrentYear(calendarMonth) && calendarMonth.getMonth() === 11
-                ? undefined
-                : () => {
-                    setCalendarFocusRange(undefined);
-                    const next = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1);
-                    setCalendarMonth(
-                      isInCurrentYear(next) ? next : startOfMonth(new Date(currentYear(), 0, 1))
-                    );
-                  }
-            }
+            onPrevMonth={() => {
+              setCalendarFocusRange(undefined);
+              setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
+            }}
+            onNextMonth={() => {
+              setCalendarFocusRange(undefined);
+              setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1));
+            }}
           />
 
           <div className="block-panel">
