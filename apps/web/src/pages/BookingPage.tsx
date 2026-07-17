@@ -88,6 +88,12 @@ export default function BookingPage() {
       return;
     }
 
+    if (form.checkOut <= form.checkIn) {
+      setQuoteTotal(null);
+      setFormError(t.checkOutAfterCheckIn);
+      return;
+    }
+
     api
       .getQuote({
         propertyId: property.id,
@@ -96,11 +102,19 @@ export default function BookingPage() {
         guests: form.guests,
       })
       .then((quote) => {
+        if (!quote.subtotal || quote.subtotal <= 0) {
+          setQuoteTotal(null);
+          setFormError(t.priceUnavailable);
+          return;
+        }
         setQuoteTotal(quote.subtotal);
         setFormError(null);
       })
-      .catch(() => setQuoteTotal(null));
-  }, [form.checkIn, form.checkOut, form.guests, property?.id]);
+      .catch((err) => {
+        setQuoteTotal(null);
+        setFormError(err instanceof Error ? err.message : t.bookingFailed);
+      });
+  }, [form.checkIn, form.checkOut, form.guests, property?.id, t]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();

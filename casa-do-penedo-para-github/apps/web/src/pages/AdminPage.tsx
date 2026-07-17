@@ -177,6 +177,12 @@ export default function AdminPage() {
       return;
     }
 
+    if (form.checkOut <= form.checkIn) {
+      setQuoteTotal(null);
+      setFormError("Check-out deve ser posterior ao check-in");
+      return;
+    }
+
     api
       .getQuote({
         propertyId: property.id,
@@ -185,6 +191,11 @@ export default function AdminPage() {
         guests: form.guests,
       })
       .then((quote) => {
+        if (!quote.subtotal || quote.subtotal <= 0) {
+          setQuoteTotal(null);
+          setFormError("Não foi possível calcular o preço para estas datas");
+          return;
+        }
         setQuoteTotal(quote.subtotal);
         setFormError(null);
       })

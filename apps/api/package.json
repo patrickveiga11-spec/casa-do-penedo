@@ -13,6 +13,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:generate": "prisma generate",
     "test:email": "tsx scripts/test-email.ts",
+    "test:pricing": "tsx scripts/pricing-smoke.ts",
     "cron:welcome": "tsx scripts/send-welcome-emails.ts"
   },
   "dependencies": {

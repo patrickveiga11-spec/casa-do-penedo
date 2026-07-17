@@ -1,6 +1,6 @@
 import type { PricingRule } from "@prisma/client";
 import { eachNight, formatDate } from "../lib/dates.js";
-import { calculateSummer2027Price, isStayFullyInSummer2027, isSummer2027Rule } from "./seasonal-pricing.js";
+import { calculateSummer2027Price, isSummer2027Rule } from "./seasonal-pricing.js";
 
 export const INCLUDED_GUESTS = 7;
 export const EXTRA_GUEST_FEE = 15;
@@ -117,21 +117,36 @@ export function calculateDynamicPrice(
 ): PriceBreakdown {
   const nights = eachNight(checkIn, checkOut);
   const nightCount = nights.length;
+
+  if (nightCount < 1) {
+    throw new Error("Check-out deve ser posterior ao check-in");
+  }
+
+  if (!Number.isFinite(basePrice) || basePrice < 0) {
+    throw new Error("Preço base inválido");
+  }
+
   const guestSurcharge = extraGuestFee(guests);
   const sortedRules = [...rules].sort((a, b) => b.priority - a.priority);
 
   const summerPrice = calculateSummer2027Price(nights, sortedRules, currency, guests);
   if (summerPrice) {
+    if (summerPrice.subtotal <= 0) {
+      throw new Error("Cálculo de época alta devolveu valor inválido");
+    }
     return summerPrice;
   }
 
-  const standardRules = isStayFullyInSummer2027(nights)
-    ? sortedRules.filter((rule) => !isSummer2027Rule(rule))
-    : sortedRules;
+  // Regras sazonais 2027 só entram pelo ramo acima — nunca no cálculo normal.
+  const standardRules = sortedRules.filter((rule) => !isSummer2027Rule(rule));
 
   const packageRule = findPackageRule(standardRules, nightCount, nights[0]);
   if (packageRule) {
-    return buildPackageBreakdown(nights, packageRule, guestSurcharge, currency, guests);
+    const packaged = buildPackageBreakdown(nights, packageRule, guestSurcharge, currency, guests);
+    if (packaged.subtotal <= 0) {
+      throw new Error("Cálculo de pacote devolveu valor inválido");
+    }
+    return packaged;
   }
 
   const breakdown: PriceBreakdownNight[] = nights.map((date) => {
@@ -158,11 +173,15 @@ export function calculateDynamicPrice(
     };
   });
 
-  const subtotal = breakdown.reduce((sum, night) => sum + night.adjustedPrice, 0);
+  const subtotal = Math.round(breakdown.reduce((sum, night) => sum + night.adjustedPrice, 0) * 100) / 100;
+
+  if (subtotal <= 0) {
+    throw new Error("Cálculo de preço devolveu valor inválido");
+  }
 
   return {
     nights: breakdown,
-    subtotal: Math.round(subtotal * 100) / 100,
+    subtotal,
     currency,
     guests,
   };

@@ -110,14 +110,25 @@ export async function reservationRoutes(app: FastifyInstance) {
       });
     }
 
-    const pricing = calculateDynamicPrice(
-      Number(property.basePrice),
-      property.currency,
-      checkIn,
-      checkOut,
-      pricingRules,
-      body.guests
-    );
+    let pricing;
+    try {
+      pricing = calculateDynamicPrice(
+        Number(property.basePrice),
+        property.currency,
+        checkIn,
+        checkOut,
+        pricingRules,
+        body.guests
+      );
+    } catch (error) {
+      return reply.status(400).send({
+        error: error instanceof Error ? error.message : "Erro ao calcular preço",
+      });
+    }
+
+    if (pricing.subtotal <= 0) {
+      return reply.status(400).send({ error: "Não foi possível calcular um preço válido para estas datas" });
+    }
 
     const isAdmin = verifyAdminToken(request.headers.authorization);
     let discountPercent = 0;
@@ -686,6 +697,10 @@ export async function pricingRoutes(app: FastifyInstance) {
     const checkIn = toDateOnly(body.checkIn);
     const checkOut = toDateOnly(body.checkOut);
 
+    if (checkOut <= checkIn) {
+      return reply.status(400).send({ error: "Check-out deve ser posterior ao check-in" });
+    }
+
     const property = await prisma.property.findUniqueOrThrow({
       where: { id: body.propertyId },
     });
@@ -694,14 +709,20 @@ export async function pricingRoutes(app: FastifyInstance) {
       where: { propertyId: body.propertyId, isActive: true },
     });
 
-    return calculateDynamicPrice(
-      Number(property.basePrice),
-      property.currency,
-      checkIn,
-      checkOut,
-      rules,
-      body.guests
-    );
+    try {
+      return calculateDynamicPrice(
+        Number(property.basePrice),
+        property.currency,
+        checkIn,
+        checkOut,
+        rules,
+        body.guests
+      );
+    } catch (error) {
+      return reply.status(400).send({
+        error: error instanceof Error ? error.message : "Erro ao calcular preço",
+      });
+    }
   });
 }
 
