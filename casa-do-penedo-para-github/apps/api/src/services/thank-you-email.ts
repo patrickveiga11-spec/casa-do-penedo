@@ -3,7 +3,9 @@ import { prisma } from "../lib/prisma.js";
 import { addDaysToDateKey, formatDate, getDateKeyInTimeZone, toDateOnly } from "../lib/dates.js";
 import { sendThankYouEmail } from "./email.js";
 
+/** Envia 1 dia após o check-out; recupera atrasados até este número de dias. */
 const THANK_YOU_DAYS_AFTER = 1;
+const THANK_YOU_CATCHUP_DAYS = 14;
 const ELIGIBLE_STATUSES: ReservationStatus[] = ["CONFIRMED", "CHECKED_IN", "CHECKED_OUT"];
 
 function isEligible(reservation: Reservation): boolean {
@@ -15,10 +17,13 @@ function isEligible(reservation: Reservation): boolean {
   );
 }
 
-export function isThankYouCronTarget(checkOut: Date, from = new Date()): boolean {
+export function isThankYouDue(checkOut: Date, from = new Date()): boolean {
   const todayKey = getDateKeyInTimeZone(from);
-  const targetCheckOutKey = addDaysToDateKey(todayKey, -THANK_YOU_DAYS_AFTER);
-  return formatDate(toDateOnly(checkOut)) === targetCheckOutKey;
+  const checkOutKey = formatDate(toDateOnly(checkOut));
+  const earliestKey = addDaysToDateKey(todayKey, -THANK_YOU_CATCHUP_DAYS);
+  const latestDueKey = addDaysToDateKey(todayKey, -THANK_YOU_DAYS_AFTER);
+
+  return checkOutKey >= earliestKey && checkOutKey <= latestDueKey;
 }
 
 export async function trySendThankYouEmail(
@@ -47,7 +52,8 @@ export async function trySendThankYouEmail(
 
 export async function processScheduledThankYouEmails(from = new Date()) {
   const todayKey = getDateKeyInTimeZone(from);
-  const targetCheckOutKey = addDaysToDateKey(todayKey, -THANK_YOU_DAYS_AFTER);
+  const earliestCheckOutKey = addDaysToDateKey(todayKey, -THANK_YOU_CATCHUP_DAYS);
+  const latestDueCheckOutKey = addDaysToDateKey(todayKey, -THANK_YOU_DAYS_AFTER);
 
   const reservations = await prisma.reservation.findMany({
     where: {
@@ -55,27 +61,37 @@ export async function processScheduledThankYouEmails(from = new Date()) {
       thankYouEmailSentAt: null,
       guestEmail: { not: null },
       status: { in: ELIGIBLE_STATUSES },
-      checkOut: toDateOnly(targetCheckOutKey),
+      checkOut: {
+        gte: toDateOnly(earliestCheckOutKey),
+        lte: toDateOnly(latestDueCheckOutKey),
+      },
     },
     include: { property: true },
+    orderBy: { checkOut: "asc" },
   });
 
   const results = [];
 
   for (const reservation of reservations) {
-    if (!isThankYouCronTarget(reservation.checkOut, from)) {
+    if (!isThankYouDue(reservation.checkOut, from)) {
       results.push({ id: reservation.id, sent: false, reason: "Fora da janela de envio" });
       continue;
     }
 
     const result = await trySendThankYouEmail(reservation);
-    results.push({ id: reservation.id, guestName: reservation.guestName, ...result });
+    results.push({
+      id: reservation.id,
+      guestName: reservation.guestName,
+      checkOut: formatDate(reservation.checkOut),
+      ...result,
+    });
   }
 
   const sent = results.filter((item) => item.sent).length;
 
   return {
-    targetCheckOut: targetCheckOutKey,
+    fromCheckOut: earliestCheckOutKey,
+    toCheckOut: latestDueCheckOutKey,
     processed: results.length,
     sent,
     results,

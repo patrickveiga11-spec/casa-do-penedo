@@ -127,7 +127,10 @@ export function buildReservationComms(reservation: {
 
     if (daysSinceCheckout >= THANK_YOU_DAYS_AFTER) {
       thankYouStatus = "scheduled";
-      thankYouDetail = "Envio automático em breve (1 dia após o check-out)";
+      thankYouDetail =
+        daysSinceCheckout > THANK_YOU_DAYS_AFTER
+          ? "Atrasado — será enviado automaticamente no próximo ciclo (9h)"
+          : "Envio automático em breve (1 dia após o check-out)";
     } else {
       thankYouStatus = "scheduled";
       thankYouDetail = `Agendado para ${scheduleLabel}`;
