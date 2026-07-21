@@ -157,13 +157,21 @@ function parseEmailList(value: string | undefined): string[] {
   return recipients;
 }
 
+const DEFAULT_OWNER_EMAIL = "casa_do_penedo@casadopenedo.pt";
+
 function getOwnerNotificationRecipients(): string[] {
   const explicit = parseEmailList(process.env.OWNER_NOTIFICATION_EMAILS?.trim());
   if (explicit.length > 0) {
     return explicit;
   }
 
-  return parseEmailList(process.env.OWNER_EMAIL?.trim());
+  const fromEnv = parseEmailList(process.env.OWNER_EMAIL?.trim());
+  if (fromEnv.length > 0) {
+    return fromEnv;
+  }
+
+  // Fallback seguro: caixa oficial da Casa do Penedo
+  return [DEFAULT_OWNER_EMAIL];
 }
 
 function getPrimaryOwnerEmail(): string | undefined {
@@ -712,7 +720,7 @@ export async function sendOwnerNewReservationNotification(
   const ownerRecipients = getOwnerNotificationRecipients();
 
   if (ownerRecipients.length === 0) {
-    return { sent: false, reason: "OWNER_EMAIL ou OWNER_NOTIFICATION_EMAILS em falta" };
+    return { sent: false, reason: "Nenhum email de proprietário configurado" };
   }
 
   const configError = getEmailConfigError();
