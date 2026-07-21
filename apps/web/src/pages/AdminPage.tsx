@@ -348,7 +348,7 @@ export default function AdminPage() {
         return;
       }
 
-      await api.createReservation(
+      const created = await api.createReservation(
         {
           propertyId: property.id,
           guestName: form.guestName,
@@ -361,6 +361,16 @@ export default function AdminPage() {
         },
         true
       );
+
+      if (created.ownerEmailSent === false) {
+        setDeleteNotice(
+          `Reserva criada, mas o email de pedido ao proprietário falhou${
+            created.ownerEmailError ? `: ${created.ownerEmailError}` : "."
+          }`
+        );
+      } else {
+        setDeleteNotice("Reserva criada. Notificação enviada.");
+      }
 
       setForm({
         guestName: "",

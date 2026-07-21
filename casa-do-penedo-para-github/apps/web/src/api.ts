@@ -225,6 +225,9 @@ export interface Reservation {
   createdAt?: string | null;
   accessCode?: string | null;
   emailSent?: boolean;
+  emailError?: string;
+  ownerEmailSent?: boolean;
+  ownerEmailError?: string;
   subtotalBeforeDiscount?: number;
 }
 

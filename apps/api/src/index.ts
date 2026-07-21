@@ -24,7 +24,16 @@ const app = Fastify({ logger: true });
 
 await app.register(cors, { origin: true });
 
-app.get("/health", async () => ({ status: "ok", module: "reservas" }));
+app.get("/health", async () => ({
+  status: "ok",
+  module: "reservas",
+  email: {
+    brevoConfigured: Boolean(process.env.BREVO_API_KEY?.trim()),
+    ownerConfigured: Boolean(
+      process.env.OWNER_NOTIFICATION_EMAILS?.trim() || process.env.OWNER_EMAIL?.trim()
+    ),
+  },
+}));
 
 await app.register(authRoutes);
 await app.register(propertyRoutes);

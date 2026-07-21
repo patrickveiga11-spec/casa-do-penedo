@@ -164,30 +164,51 @@ export async function reservationRoutes(app: FastifyInstance) {
 
     let emailSent = false;
     let emailError: string | undefined;
+    let ownerEmailSent = false;
+    let ownerEmailError: string | undefined;
 
-    if (reservation.guestEmail) {
-      const emailResult = await sendReservationConfirmation({
+    // Notificar o proprietário primeiro — não depende do email do hóspede.
+    try {
+      const ownerEmailResult = await sendOwnerNewReservationNotification({
         reservation,
         property: reservation.property,
       });
-      emailSent = emailResult.sent;
-      emailError = emailResult.reason;
+      ownerEmailSent = ownerEmailResult.sent;
+      ownerEmailError = ownerEmailResult.reason;
+
+      if (!ownerEmailResult.sent) {
+        console.warn("[email:owner-notification]", ownerEmailResult.reason);
+      }
+    } catch (error) {
+      ownerEmailError = error instanceof Error ? error.message : "Erro ao notificar proprietário";
+      console.error("[email:owner-notification]", error);
     }
 
-    const ownerEmailResult = await sendOwnerNewReservationNotification({
-      reservation,
-      property: reservation.property,
-    });
-
-    if (!ownerEmailResult.sent) {
-      console.warn("[email:owner-notification]", ownerEmailResult.reason);
+    if (reservation.guestEmail) {
+      try {
+        const emailResult = await sendReservationConfirmation({
+          reservation,
+          property: reservation.property,
+        });
+        emailSent = emailResult.sent;
+        emailError = emailResult.reason;
+      } catch (error) {
+        emailError = error instanceof Error ? error.message : "Erro ao enviar email ao hóspede";
+        console.error("[email:guest-confirmation]", error);
+      }
     }
 
     void syncGuestFromReservation(reservation).catch((error) => {
       console.warn("[guest-registry:sync]", error);
     });
 
-    return reply.status(201).send({ ...reservation, emailSent, emailError });
+    return reply.status(201).send({
+      ...reservation,
+      emailSent,
+      emailError,
+      ownerEmailSent,
+      ownerEmailError,
+    });
   });
 
   app.delete("/reservations/:id", { preHandler: requireAdmin }, async (request, reply) => {

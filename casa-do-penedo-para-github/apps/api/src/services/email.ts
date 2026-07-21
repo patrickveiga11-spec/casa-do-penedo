@@ -463,7 +463,7 @@ function buildOwnerNewReservationEmailContent({ reservation, property }: Reserva
   const checkOut = formatDate(reservation.checkOut);
   const total = formatMoney(Number(reservation.totalPrice), reservation.currency);
 
-  const subject = `Casa do Penedo — pedido de ${reservation.guestName}`;
+  const subject = `NOVO PEDIDO DE RESERVA — ${reservation.guestName} (${checkIn})`;
 
   const text = [
     "Recebeste um novo pedido de reserva na Casa do Penedo.",
@@ -477,7 +477,8 @@ function buildOwnerNewReservationEmailContent({ reservation, property }: Reserva
     `Hóspedes: ${reservation.guests}`,
     `Total estimado: ${total}`,
     "",
-    "Estado: pendente de validação em https://casa-do-penedo.vercel.app/gestao",
+    "Estado: pendente de validação",
+    "Abrir gestão: https://casa-do-penedo.vercel.app/gestao",
     "",
     "Casa do Penedo",
   ]
@@ -486,15 +487,21 @@ function buildOwnerNewReservationEmailContent({ reservation, property }: Reserva
 
   const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2933; max-width: 560px;">
+      <h2 style="color: #b45309; margin-top: 0;">Novo pedido de reserva</h2>
       <p>Recebeste um novo pedido de reserva na <strong>${property.name}</strong>.</p>
-      <p><strong>Hóspede:</strong> ${reservation.guestName}<br/>
-      <strong>Email:</strong> ${reservation.guestEmail ?? "—"}<br/>
-      <strong>Telemóvel:</strong> ${reservation.guestPhone ?? "—"}<br/>
-      <strong>Check-in:</strong> ${checkIn}<br/>
-      <strong>Check-out:</strong> ${checkOut}<br/>
-      <strong>Hóspedes:</strong> ${reservation.guests}<br/>
-      <strong>Total estimado:</strong> ${total}</p>
-      <p>Validar em <a href="https://casa-do-penedo.vercel.app/gestao">casa-do-penedo.vercel.app/gestao</a></p>
+      <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+        <tr><td style="padding: 8px 0; color: #6b7280;">Hóspede</td><td style="padding: 8px 0;"><strong>${reservation.guestName}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #6b7280;">Email</td><td style="padding: 8px 0;"><strong>${reservation.guestEmail ?? "—"}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #6b7280;">Telemóvel</td><td style="padding: 8px 0;"><strong>${reservation.guestPhone ?? "—"}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #6b7280;">Check-in</td><td style="padding: 8px 0;"><strong>${checkIn}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #6b7280;">Check-out</td><td style="padding: 8px 0;"><strong>${checkOut}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #6b7280;">Hóspedes</td><td style="padding: 8px 0;"><strong>${reservation.guests}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #6b7280;">Total estimado</td><td style="padding: 8px 0;"><strong>${total}</strong></td></tr>
+      </table>
+      <p style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 16px;">
+        Estado: <strong>pendente de validação</strong>
+      </p>
+      <p><a href="https://casa-do-penedo.vercel.app/gestao" style="display:inline-block;background:#2d6a4f;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700;">Abrir gestão</a></p>
     </div>
   `;
 
@@ -530,53 +537,60 @@ async function sendViaBrevoApi(payload: EmailPayload): Promise<EmailSendResult> 
     return { sent: false, reason: "BREVO_API_KEY em falta" };
   }
 
-  const sender = await resolveBrevoSender(apiKey);
-  const ownerEmail = getPrimaryOwnerEmail();
-  const replyTo = payload.replyTo ?? getReplyToAddress();
-  const bcc =
-    shouldIncludeOwnerBcc(payload) && ownerEmail && ownerEmail !== payload.to
-      ? [{ email: ownerEmail }]
-      : undefined;
-  const attachment =
-    payload.attachments?.map((file) => ({
-      name: file.filename,
-      content: file.content.toString("base64"),
-    })) ?? undefined;
+  try {
+    const sender = await resolveBrevoSender(apiKey);
+    const ownerEmail = getPrimaryOwnerEmail();
+    const replyTo = payload.replyTo ?? getReplyToAddress();
+    const bcc =
+      shouldIncludeOwnerBcc(payload) && ownerEmail && ownerEmail !== payload.to
+        ? [{ email: ownerEmail }]
+        : undefined;
+    const attachment =
+      payload.attachments?.map((file) => ({
+        name: file.filename,
+        content: file.content.toString("base64"),
+      })) ?? undefined;
 
-  if (isFreeEmailAddress(sender.email)) {
-    console.warn(
-      "[email:deliverability] Remetente gratuito via Brevo pode ir para spam. Configure um domínio autenticado no Brevo."
-    );
+    if (isFreeEmailAddress(sender.email)) {
+      console.warn(
+        "[email:deliverability] Remetente gratuito via Brevo pode ir para spam. Configure um domínio autenticado no Brevo."
+      );
+    }
+
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "api-key": apiKey,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        sender: sender.id ? { id: sender.id, name: sender.name } : { email: sender.email, name: sender.name },
+        to: [{ email: payload.to, name: payload.toName }],
+        replyTo,
+        bcc,
+        subject: payload.subject,
+        htmlContent: payload.textOnly ? undefined : payload.html,
+        textContent: payload.text,
+        tags: payload.tags,
+        ...(payload.headers ? { headers: payload.headers } : {}),
+        ...(attachment?.length ? { attachment } : {}),
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: response.statusText }));
+      const message = typeof error.message === "string" ? error.message : "Erro ao enviar via Brevo API";
+      return { sent: false, reason: message };
+    }
+
+    return { sent: true };
+  } catch (error) {
+    return {
+      sent: false,
+      reason: error instanceof Error ? error.message : "Erro de rede ao enviar via Brevo",
+    };
   }
-
-  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    headers: {
-      "api-key": apiKey,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      sender: sender.id ? { id: sender.id, name: sender.name } : { email: sender.email, name: sender.name },
-      to: [{ email: payload.to, name: payload.toName }],
-      replyTo,
-      bcc,
-      subject: payload.subject,
-      htmlContent: payload.textOnly ? undefined : payload.html,
-      textContent: payload.text,
-      tags: payload.tags,
-      headers: payload.headers,
-      ...(attachment?.length ? { attachment } : {}),
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: response.statusText }));
-    const message = typeof error.message === "string" ? error.message : "Erro ao enviar via Brevo API";
-    return { sent: false, reason: message };
-  }
-
-  return { sent: true };
 }
 
 function createSmtpTransport() {
@@ -732,12 +746,9 @@ export async function sendOwnerNewReservationNotification(
         text,
         html: textOnly ? undefined : html,
         textOnly,
-        tags: ["reserva", "gestao"],
+        tags: ["reserva", "gestao", "novo-pedido"],
         includeOwnerBcc: false,
         replyTo: guestReply,
-        headers: {
-          "Auto-Submitted": "auto-generated",
-        },
       });
 
       if (result.sent) {
