@@ -453,6 +453,33 @@ export async function reservationRoutes(app: FastifyInstance) {
     return reply.send({ success: true, emailSent: true, type: existing.validatedAt ? "final" : "provisional" });
   });
 
+  app.post("/reservations/:id/resend-owner-notification", { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const existing = await prisma.reservation.findUnique({
+      where: { id },
+      include: { property: true },
+    });
+
+    if (!existing) {
+      return reply.status(404).send({ error: "Reserva não encontrada" });
+    }
+
+    const emailResult = await sendOwnerNewReservationNotification({
+      reservation: existing,
+      property: existing.property,
+    });
+
+    if (!emailResult.sent) {
+      return reply.status(502).send({
+        error: emailResult.reason ?? "Não foi possível notificar o proprietário",
+        ownerEmailSent: false,
+      });
+    }
+
+    return reply.send({ success: true, ownerEmailSent: true });
+  });
+
   app.post("/reservations/:id/resend-welcome", { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string };
 

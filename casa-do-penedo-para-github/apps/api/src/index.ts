@@ -15,6 +15,7 @@ import { cronRoutes } from "./routes/cron.js";
 import { startWelcomeEmailCron } from "./lib/welcome-cron.js";
 import { backfillMissingAccessCodes } from "./services/access-code.js";
 import { backfillGuestRegistry } from "./services/guest-registry.js";
+import { getBrevoDomainStatus } from "./services/brevo-sender.js";
 
 loadEnv();
 
@@ -24,16 +25,27 @@ const app = Fastify({ logger: true });
 
 await app.register(cors, { origin: true });
 
-app.get("/health", async () => ({
-  status: "ok",
-  module: "reservas",
-  email: {
-    brevoConfigured: Boolean(process.env.BREVO_API_KEY?.trim()),
-    ownerConfigured: Boolean(
-      process.env.OWNER_NOTIFICATION_EMAILS?.trim() || process.env.OWNER_EMAIL?.trim()
-    ),
-  },
-}));
+app.get("/health", async () => {
+  const brevoConfigured = Boolean(process.env.BREVO_API_KEY?.trim());
+  const domainStatus =
+    brevoConfigured ?
+      await getBrevoDomainStatus(process.env.BREVO_API_KEY!.trim())
+    : { authenticated: false, verified: false, dnsReady: false };
+
+  return {
+    status: "ok",
+    module: "reservas",
+    email: {
+      brevoConfigured,
+      ownerConfigured: Boolean(
+        process.env.OWNER_NOTIFICATION_EMAILS?.trim() || process.env.OWNER_EMAIL?.trim()
+      ),
+      domainAuthenticated: domainStatus.authenticated,
+      domainVerified: domainStatus.verified,
+      domainDnsReady: domainStatus.dnsReady,
+    },
+  };
+});
 
 await app.register(authRoutes);
 await app.register(propertyRoutes);

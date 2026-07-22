@@ -100,6 +100,104 @@ const TRUSTED_SENDER_EMAIL = "casa_do_penedo@casadopenedo.pt";
 const TRUSTED_SENDER_NAME = "Casa do Penedo";
 const TRUSTED_SENDER_DOMAIN = "casadopenedo.pt";
 
+interface BrevoDomainStatus {
+  authenticated: boolean;
+  verified: boolean;
+  dnsReady: boolean;
+}
+
+let cachedDomainStatus: BrevoDomainStatus | null = null;
+let cachedDomainStatusAt = 0;
+
+export async function getBrevoDomainStatus(apiKey: string): Promise<BrevoDomainStatus> {
+  const now = Date.now();
+  if (cachedDomainStatus && now - cachedDomainStatusAt < 10 * 60 * 1000) {
+    return cachedDomainStatus;
+  }
+
+  const fallback: BrevoDomainStatus = {
+    authenticated: false,
+    verified: false,
+    dnsReady: false,
+  };
+
+  try {
+    const response = await fetch(`https://api.brevo.com/v3/senders/domains/${TRUSTED_SENDER_DOMAIN}`, {
+      headers: {
+        "api-key": apiKey,
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      return cachedDomainStatus ?? fallback;
+    }
+
+    const data = (await response.json()) as {
+      authenticated?: boolean;
+      verified?: boolean;
+      dns_records?: Record<string, { status?: boolean } | null>;
+    };
+
+    const records = Object.values(data.dns_records ?? {}).filter(
+      (record): record is { status?: boolean } => Boolean(record)
+    );
+    const dnsReady = records.length > 0 && records.every((record) => record.status === true);
+
+    cachedDomainStatus = {
+      authenticated: Boolean(data.authenticated),
+      verified: Boolean(data.verified),
+      dnsReady,
+    };
+    cachedDomainStatusAt = now;
+    return cachedDomainStatus;
+  } catch {
+    return cachedDomainStatus ?? fallback;
+  }
+}
+
+/** Garante DKIM activo na Brevo (sem isto Outlook/Microsoft rejeita com "DKIM Bad request"). */
+export async function ensureBrevoDomainAuthenticated(apiKey: string): Promise<BrevoDomainStatus> {
+  const status = await getBrevoDomainStatus(apiKey);
+  if (status.authenticated && status.verified) {
+    return status;
+  }
+
+  if (!status.dnsReady) {
+    console.warn(
+      "[email:deliverability] DNS da Brevo incompleto para casadopenedo.pt — confirma SPF/DKIM/DMARC no cPanel"
+    );
+    return status;
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.brevo.com/v3/senders/domains/${TRUSTED_SENDER_DOMAIN}/authenticate`,
+      {
+        method: "PUT",
+        headers: {
+          "api-key": apiKey,
+          Accept: "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.warn("[email:deliverability] Não foi possível autenticar o domínio na Brevo:", response.status);
+      return status;
+    }
+
+    cachedDomainStatus = null;
+    return getBrevoDomainStatus(apiKey);
+  } catch (error) {
+    console.warn(
+      "[email:deliverability] Erro ao autenticar domínio na Brevo:",
+      error instanceof Error ? error.message : error
+    );
+    return status;
+  }
+}
+
 export async function resolveBrevoSender(apiKey: string): Promise<{ id?: number; name: string; email: string }> {
   const configured = parseConfiguredSender();
   const senders = await fetchBrevoSenders(apiKey);

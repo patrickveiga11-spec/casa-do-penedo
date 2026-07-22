@@ -6,6 +6,7 @@ import type { Property, Reservation } from "@prisma/client";
 import {
   isFreeEmailAddress,
   isMicrosoftMailbox,
+  ensureBrevoDomainAuthenticated,
   resolveBrevoSender,
   shouldUseTextOnlyOwnerEmail,
 } from "./brevo-sender.js";
@@ -595,6 +596,13 @@ async function sendViaBrevoApi(payload: EmailPayload): Promise<EmailSendResult> 
   }
 
   try {
+    const domainStatus = await ensureBrevoDomainAuthenticated(apiKey);
+    if (!domainStatus.authenticated) {
+      console.warn(
+        "[email:deliverability] Domínio casadopenedo.pt ainda não autenticado na Brevo — risco de falha (especialmente Outlook)"
+      );
+    }
+
     const sender = await resolveBrevoSender(apiKey);
     const ownerEmail = getPrimaryOwnerEmail();
     const replyTo = payload.replyTo ?? getReplyToAddress();
