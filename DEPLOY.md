@@ -98,13 +98,29 @@ Isto cria a propriedade «Casa do Penedo» e as regras de preço.
 ## Passo 5 — Brevo (emails em produção)
 
 1. Em https://app.brevo.com/security/authorised_ips — desactiva restrição de IP **ou** autoriza IPs da Render (para testes, desactivar é mais simples).
-2. **Domínio próprio (recomendado):** em Brevo → **Senders, Domains & Dedicated IPs** → **Domains** → adiciona `casadopenedo.pt` e copia os registos DNS (SPF, DKIM e, se possível, DMARC) para o painel do teu registrador de domínio. Espera a validação ficar verde.
-3. Adiciona o remetente `casa_do_penedo@casadopenedo.pt` em **Senders** e confirma-o (email de verificação ou domínio já validado).
-4. Confirma que `BREVO_API_KEY` está no Render e actualiza também:
+2. **Domínio próprio (obrigatório anti-spam):** em Brevo → **Senders, Domains & Dedicated IPs** → **Domains** → `casadopenedo.pt` com DKIM verde.
+3. **SPF (crítico):** o registo TXT do domínio deve incluir a Brevo. Exemplo correcto:
+
+   ```
+   v=spf1 +a +mx +ip4:185.12.116.243 +include:spf.pmg.host-services.com +include:spf.brevo.com ~all
+   ```
+
+   Se já existe um SPF, **não cries um segundo** — só acrescenta `+include:spf.brevo.com` ao que já tens.
+4. **DMARC (recomendado):** TXT em `_dmarc.casadopenedo.pt`, por exemplo:
+
+   ```
+   v=DMARC1; p=none; rua=mailto:casa_do_penedo@casadopenedo.pt; pct=100
+   ```
+
+   Quando estiver estável, podes subir para `p=quarantine`.
+5. Adiciona o remetente `casa_do_penedo@casadopenedo.pt` em **Senders** e confirma-o.
+6. Confirma no Render:
+   - `BREVO_API_KEY` = chave da Brevo
    - `SMTP_FROM` = `Casa do Penedo <casa_do_penedo@casadopenedo.pt>`
-   - `OWNER_EMAIL` = `casa_do_penedo@casadopenedo.pt`
    - `BREVO_SENDER_EMAIL` = `casa_do_penedo@casadopenedo.pt`
-5. Reinicia o serviço no Render após alterar as variáveis.
+   - `OWNER_EMAIL` = `casa_do_penedo@casadopenedo.pt`
+7. Testa em https://www.mail-tester.com (deve ficar ≥ 8/10) e em https://mxtoolbox.com/SuperTool.aspx (SPF + DKIM + DMARC).
+8. Reinicia o serviço no Render após alterar as variáveis.
 
 ---
 

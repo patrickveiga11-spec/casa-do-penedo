@@ -458,12 +458,15 @@ function buildCancellationEmailContent({ reservation, property }: ReservationEma
 }
 
 function getReplyToAddress() {
-  const ownerEmail = getPrimaryOwnerEmail();
-  if (!ownerEmail) {
-    return undefined;
-  }
-
-  return { name: "Casa do Penedo", email: ownerEmail };
+  // Preferir sempre o domínio autenticado — Reply-To em outlook/gmail
+  // enfraquece alinhamento SPF/DMARC e aumenta risco de spam.
+  const domainReply = DEFAULT_OWNER_EMAIL;
+  const recipients = getOwnerNotificationRecipients();
+  const domainMatch = recipients.find((email) => email.toLowerCase().endsWith("@casadopenedo.pt"));
+  return {
+    name: "Casa do Penedo",
+    email: domainMatch ?? domainReply,
+  };
 }
 
 function buildOwnerNewReservationEmailContent({ reservation, property }: ReservationEmailInput) {
@@ -471,7 +474,7 @@ function buildOwnerNewReservationEmailContent({ reservation, property }: Reserva
   const checkOut = formatDate(reservation.checkOut);
   const total = formatMoney(Number(reservation.totalPrice), reservation.currency);
 
-  const subject = `NOVO PEDIDO DE RESERVA — ${reservation.guestName} (${checkIn})`;
+  const subject = `Novo pedido de reserva — ${reservation.guestName} (${checkIn})`;
 
   const text = [
     "Recebeste um novo pedido de reserva na Casa do Penedo.",
@@ -520,6 +523,52 @@ function getFromAddress() {
   return process.env.SMTP_FROM ?? "Casa do Penedo <casa_do_penedo@casadopenedo.pt>";
 }
 
+function getPublicSiteUrl() {
+  return process.env.PUBLIC_SITE_URL?.trim() || "https://casa-do-penedo.vercel.app";
+}
+
+function buildIdentityFooterText() {
+  return [
+    "",
+    "—",
+    "Casa do Penedo",
+    "Fafe, Braga, Portugal",
+    `Web: ${getPublicSiteUrl()}`,
+    "Email: casa_do_penedo@casadopenedo.pt",
+  ].join("\n");
+}
+
+function buildIdentityFooterHtml() {
+  const site = getPublicSiteUrl();
+  return `
+    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0 16px;" />
+    <p style="color: #6b7280; font-size: 0.85em; line-height: 1.5; margin: 0;">
+      <strong style="color: #374151;">Casa do Penedo</strong><br/>
+      Fafe, Braga, Portugal<br/>
+      <a href="${site}" style="color: #2d6a4f;">${site.replace(/^https?:\/\//, "")}</a><br/>
+      <a href="mailto:casa_do_penedo@casadopenedo.pt" style="color: #2d6a4f;">casa_do_penedo@casadopenedo.pt</a>
+    </p>
+  `;
+}
+
+function withIdentity(content: { subject: string; text: string; html: string }) {
+  return {
+    subject: content.subject,
+    text: `${content.text.trim()}${buildIdentityFooterText()}`,
+    html: content.html.includes("</div>")
+      ? content.html.replace(/<\/div>\s*$/i, `${buildIdentityFooterHtml()}</div>`)
+      : `${content.html}${buildIdentityFooterHtml()}`,
+  };
+}
+
+/** Headers neutros e úteis para entregabilidade (sem Auto-Submitted). */
+function buildTransactionalHeaders(): Record<string, string> {
+  return {
+    "List-Id": "<reservas.casadopenedo.pt>",
+    "X-Entity-Ref-ID": `casa-do-penedo-${Date.now()}`,
+  };
+}
+
 function shouldIncludeOwnerBcc(payload: EmailPayload) {
   if (payload.includeOwnerBcc === false) {
     return false;
@@ -563,7 +612,16 @@ async function sendViaBrevoApi(payload: EmailPayload): Promise<EmailSendResult> 
       console.warn(
         "[email:deliverability] Remetente gratuito via Brevo pode ir para spam. Configure um domínio autenticado no Brevo."
       );
+    } else if (!sender.email.toLowerCase().endsWith("@casadopenedo.pt")) {
+      console.warn(
+        `[email:deliverability] Remetente fora do domínio casadopenedo.pt (${sender.email}) — risco de spam`
+      );
     }
+
+    const headers = {
+      ...buildTransactionalHeaders(),
+      ...(payload.headers ?? {}),
+    };
 
     const response = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
@@ -573,15 +631,19 @@ async function sendViaBrevoApi(payload: EmailPayload): Promise<EmailSendResult> 
         Accept: "application/json",
       },
       body: JSON.stringify({
-        sender: sender.id ? { id: sender.id, name: sender.name } : { email: sender.email, name: sender.name },
+        sender: sender.id
+          ? { id: sender.id, name: sender.name || "Casa do Penedo" }
+          : { email: sender.email, name: sender.name || "Casa do Penedo" },
         to: [{ email: payload.to, name: payload.toName }],
-        replyTo,
+        replyTo: replyTo
+          ? { email: replyTo.email, name: replyTo.name || "Casa do Penedo" }
+          : { email: "casa_do_penedo@casadopenedo.pt", name: "Casa do Penedo" },
         bcc,
         subject: payload.subject,
         htmlContent: payload.textOnly ? undefined : payload.html,
         textContent: payload.text,
         tags: payload.tags,
-        ...(payload.headers ? { headers: payload.headers } : {}),
+        headers,
         ...(attachment?.length ? { attachment } : {}),
       }),
     });
@@ -627,7 +689,7 @@ async function sendViaSmtp(payload: EmailPayload): Promise<EmailSendResult> {
 
   const from = getFromAddress();
   const ownerEmail = getPrimaryOwnerEmail();
-  const replyTo = getReplyToAddress();
+  const replyTo = payload.replyTo ?? getReplyToAddress();
   const transport = createSmtpTransport();
 
   try {
@@ -635,12 +697,10 @@ async function sendViaSmtp(payload: EmailPayload): Promise<EmailSendResult> {
     await transport.sendMail({
       from,
       to: payload.to,
-      replyTo: (payload.replyTo ?? replyTo) ?
-        {
-          name: (payload.replyTo ?? replyTo)!.name,
-          address: (payload.replyTo ?? replyTo)!.email,
-        }
-      : undefined,
+      replyTo: {
+        name: replyTo.name,
+        address: replyTo.email,
+      },
       bcc:
         shouldIncludeOwnerBcc(payload) && ownerEmail && ownerEmail !== payload.to
           ? ownerEmail
@@ -648,7 +708,10 @@ async function sendViaSmtp(payload: EmailPayload): Promise<EmailSendResult> {
       subject: payload.subject,
       text: payload.text,
       html: payload.textOnly ? undefined : payload.html,
-      headers: payload.headers,
+      headers: {
+        ...buildTransactionalHeaders(),
+        ...(payload.headers ?? {}),
+      },
       attachments: payload.attachments?.map((file) => ({
         filename: file.filename,
         content: file.content,
@@ -663,10 +726,19 @@ async function sendViaSmtp(payload: EmailPayload): Promise<EmailSendResult> {
 }
 
 async function sendEmail(payload: EmailPayload): Promise<EmailSendResult> {
+  const html = payload.html ?? `<div style="font-family: Arial, sans-serif; white-space: pre-wrap;">${payload.text}</div>`;
+  const identified =
+    payload.text.includes("Fafe, Braga, Portugal") && payload.text.includes("casa_do_penedo@casadopenedo.pt")
+      ? payload
+      : {
+          ...payload,
+          ...withIdentity({ subject: payload.subject, text: payload.text, html }),
+        };
+
   if (process.env.BREVO_API_KEY?.trim()) {
-    const apiResult = await sendViaBrevoApi(payload);
+    const apiResult = await sendViaBrevoApi(identified);
     if (apiResult.sent) {
-      console.log(`[email:sent] Brevo API → ${payload.to}`);
+      console.log(`[email:sent] Brevo API → ${identified.to}`);
       return apiResult;
     }
 
@@ -674,9 +746,9 @@ async function sendEmail(payload: EmailPayload): Promise<EmailSendResult> {
     return apiResult;
   }
 
-  const smtpResult = await sendViaSmtp(payload);
+  const smtpResult = await sendViaSmtp(identified);
   if (smtpResult.sent) {
-    console.log(`[email:sent] SMTP → ${payload.to}`);
+    console.log(`[email:sent] SMTP → ${identified.to}`);
     return smtpResult;
   }
 

@@ -96,29 +96,53 @@ function parseConfiguredSender(): { name: string; email: string } | null {
   return null;
 }
 
+const TRUSTED_SENDER_EMAIL = "casa_do_penedo@casadopenedo.pt";
+const TRUSTED_SENDER_NAME = "Casa do Penedo";
+const TRUSTED_SENDER_DOMAIN = "casadopenedo.pt";
+
 export async function resolveBrevoSender(apiKey: string): Promise<{ id?: number; name: string; email: string }> {
   const configured = parseConfiguredSender();
   const senders = await fetchBrevoSenders(apiKey);
+  const preferredEmail = (configured?.email || TRUSTED_SENDER_EMAIL).toLowerCase();
 
-  if (configured) {
-    const active = senders.find((sender) => sender.email.toLowerCase() === configured.email.toLowerCase());
-    if (active) {
-      return {
-        id: active.id,
-        name: active.name || configured.name,
-        email: active.email,
-      };
-    }
+  const exact = senders.find((sender) => sender.email.toLowerCase() === preferredEmail);
+  if (exact) {
+    return {
+      id: exact.id,
+      name: exact.name || configured?.name || TRUSTED_SENDER_NAME,
+      email: exact.email,
+    };
+  }
 
+  const domainSender = senders.find((sender) => getEmailDomain(sender.email) === TRUSTED_SENDER_DOMAIN);
+  if (domainSender) {
+    console.warn(
+      `[email:deliverability] Remetente configurado (${preferredEmail}) não está activo na Brevo; a usar ${domainSender.email}`
+    );
+    return {
+      id: domainSender.id,
+      name: domainSender.name || TRUSTED_SENDER_NAME,
+      email: domainSender.email,
+    };
+  }
+
+  if (configured && !isFreeEmailAddress(configured.email)) {
+    console.warn(
+      `[email:deliverability] Remetente ${configured.email} não encontrado na lista activa da Brevo — confirma Senders/Domains`
+    );
     return configured;
   }
 
-  const preferred = senders[0];
-  if (preferred) {
-    return { id: preferred.id, name: preferred.name || "Casa do Penedo", email: preferred.email };
+  if (configured && isFreeEmailAddress(configured.email)) {
+    console.warn(
+      "[email:deliverability] Remetente gratuito detectado — risco alto de spam. Usa casa_do_penedo@casadopenedo.pt"
+    );
   }
 
-  return { name: "Casa do Penedo", email: "casa_do_penedo@casadopenedo.pt" };
+  return {
+    name: TRUSTED_SENDER_NAME,
+    email: TRUSTED_SENDER_EMAIL,
+  };
 }
 
 export function shouldUseTextOnlyOwnerEmail(ownerEmail: string, senderEmail: string): boolean {
