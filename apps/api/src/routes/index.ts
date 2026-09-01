@@ -17,7 +17,7 @@ import {
 import { ensureReservationAccessCode, generateUniqueAccessCode } from "../services/access-code.js";
 import { syncGuestByEmail, syncGuestFromReservation } from "../services/guest-registry.js";
 import { createBlockSchema, createPricingRuleSchema, createReservationSchema, quoteSchema, updateBlockSchema, updatePricingRuleSchema, updateReservationDetailsSchema, updateReservationPaymentSchema, updateReservationSchema } from "../schemas.js";
-import { formatDate, monthBounds, nightsInRange, toDateOnly } from "../lib/dates.js";
+import { formatDate, monthBounds, nightsInRange, toDateOnly, getDateKeyInTimeZone } from "../lib/dates.js";
 import { requireAdmin, verifyAdminToken } from "../lib/admin-auth.js";
 
 export async function propertyRoutes(app: FastifyInstance) {
@@ -658,7 +658,15 @@ export async function calendarRoutes(app: FastifyInstance) {
     ]);
 
     const isAdmin = verifyAdminToken(request.headers.authorization);
-    const visibleReservations = isAdmin ? reservations : reservations.map(anonymizeReservation);
+    const todayKey = getDateKeyInTimeZone();
+    const relevantReservations =
+      isAdmin ?
+        reservations
+      : reservations.filter(
+          (reservation) => formatDate(toDateOnly(reservation.checkOut)) >= todayKey
+        );
+    const visibleReservations =
+      isAdmin ? relevantReservations : relevantReservations.map(anonymizeReservation);
 
     return { from: formatDate(fromDate), to: formatDate(toDate), reservations: visibleReservations, blocks };
   });

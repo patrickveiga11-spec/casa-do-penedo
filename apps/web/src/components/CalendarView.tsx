@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { Reservation } from "../api";
 import { dateKeyFromIso, isSelectedStayDay, parseDateKey, toDateKey } from "../lib/format";
+import { todayKeyInLisbon } from "../lib/reservation-filters";
 
 interface CalendarLabels {
   weekdays: readonly string[];
@@ -55,6 +56,7 @@ export function CalendarView({
 }: CalendarViewProps) {
   const labels = labelsProp ?? defaultLabels;
   const today = todayLabel ?? labels.today;
+  const todayKey = todayKeyInLisbon();
   const start = parseDateKey(from);
   const month = start.getMonth();
   const year = start.getFullYear();
@@ -79,6 +81,11 @@ export function CalendarView({
 
   function reservationForDay(date: Date) {
     const dayKey = toDateKey(date);
+
+    // Página pública: não mostrar ocupação de reservas já terminadas.
+    if (hideGuestNames && dayKey < todayKey) {
+      return undefined;
+    }
 
     return reservations.find((reservation) =>
       isSelectedStayDay(dayKey, reservation.checkIn, reservation.checkOut)
