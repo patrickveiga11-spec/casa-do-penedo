@@ -159,8 +159,9 @@ export function CalendarView({
           const block = blockForDay(date);
           const selected = dayInSelectedRange(dayKey);
           const focused = dayInFocusRange(dayKey);
+          const isOccupied = Boolean(reservation || block);
           const showMark = hideGuestNames
-            ? Boolean(reservation || block)
+            ? isOccupied
             : selectedRange
               ? selected
               : Boolean(reservation);
@@ -180,10 +181,12 @@ export function CalendarView({
               className={[
                 "calendar-day",
                 !inMonth ? "muted" : "",
-                reservation ? "booked" : "",
+                hideGuestNames
+                  ? (isOccupied ? "booked" : "")
+                  : (reservation ? "booked" : ""),
                 selected ? "selected" : "",
                 focused ? "focused" : "",
-                block ? "blocked" : "",
+                !hideGuestNames && block ? "blocked" : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
