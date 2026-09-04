@@ -27,6 +27,8 @@ const MICROSOFT_EMAIL_DOMAINS = new Set([
   "msn.com",
 ]);
 
+const APPLE_EMAIL_DOMAINS = new Set(["icloud.com", "me.com", "mac.com"]);
+
 export function getEmailDomain(email: string): string | undefined {
   const parts = email.trim().toLowerCase().split("@");
   return parts.length === 2 ? parts[1] : undefined;
@@ -40,6 +42,11 @@ export function isFreeEmailAddress(email: string): boolean {
 export function isMicrosoftMailbox(email: string): boolean {
   const domain = getEmailDomain(email);
   return domain ? MICROSOFT_EMAIL_DOMAINS.has(domain) : false;
+}
+
+export function isAppleMailbox(email: string): boolean {
+  const domain = getEmailDomain(email);
+  return domain ? APPLE_EMAIL_DOMAINS.has(domain) : false;
 }
 
 interface BrevoSenderRecord {
@@ -246,4 +253,17 @@ export async function resolveBrevoSender(apiKey: string): Promise<{ id?: number;
 export function shouldUseTextOnlyOwnerEmail(ownerEmail: string, _senderEmail?: string): boolean {
   // Outlook/Hotmail filtram HTML promocional com mais agressividade.
   return isMicrosoftMailbox(ownerEmail);
+}
+
+/** iCloud/Apple Mail: HTML + relays partilhados (Brevo) caem em spam com frequência. */
+export function shouldPreferDomainSmtpForRecipient(email: string): boolean {
+  return isAppleMailbox(email) || isLocalDomainEmailLike(email);
+}
+
+function isLocalDomainEmailLike(email: string): boolean {
+  return email.trim().toLowerCase().endsWith("@casadopenedo.pt");
+}
+
+export function shouldUseTextOnlyGuestEmail(guestEmail: string): boolean {
+  return isAppleMailbox(guestEmail) || isMicrosoftMailbox(guestEmail);
 }

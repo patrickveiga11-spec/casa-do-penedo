@@ -4,10 +4,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Property, Reservation } from "@prisma/client";
 import {
+  isAppleMailbox,
   isFreeEmailAddress,
   isMicrosoftMailbox,
   ensureBrevoDomainAuthenticated,
   resolveBrevoSender,
+  shouldPreferDomainSmtpForRecipient,
+  shouldUseTextOnlyGuestEmail,
   shouldUseTextOnlyOwnerEmail,
 } from "./brevo-sender.js";
 
@@ -200,13 +203,14 @@ function buildEmailContent({ reservation, property }: ReservationEmailInput) {
   const discountLine =
     discountPercent > 0 ? `Desconto aplicado: ${discountPercent}%` : "";
 
-  const subject = `Reserva provisória — ${property.name}`;
+  // Assunto pessoal e curto — Apple/iCloud penaliza "promo" / urgência.
+  const subject = `Casa do Penedo — pedido de ${reservation.guestName}`;
 
   const text = [
     `Olá ${reservation.guestName},`,
     "",
-    "Recebemos o teu pedido de reserva na Casa do Penedo.",
-    "Esta é uma reserva provisória — ainda não está confirmada.",
+    "Obrigado. Recebemos o teu pedido na Casa do Penedo.",
+    "Vamos rever as datas e responder-te em breve com a confirmação.",
     "",
     `Check-in: ${checkIn}`,
     `Check-out: ${checkOut}`,
@@ -216,35 +220,34 @@ function buildEmailContent({ reservation, property }: ReservationEmailInput) {
     "",
     reservation.guestPhone ? `Telemóvel: ${reservation.guestPhone}` : "",
     "",
-    "Enviaremos um email de confirmação final com o valor a pagar assim que validarmos a reserva.",
+    "Se tiveres alguma dúvida, responde a este email.",
     "",
-    "Obrigado,",
+    "Cumprimentos,",
     "Casa do Penedo",
+    "Fafe, Braga, Portugal",
+    "casa_do_penedo@casadopenedo.pt",
   ]
     .filter(Boolean)
     .join("\n");
 
-  const discountRow =
-    discountPercent > 0
-      ? `<tr><td style="padding: 8px 0; color: #6b7280;">Desconto</td><td style="padding: 8px 0;"><strong>${discountPercent}%</strong></td></tr>`
-      : "";
-
   const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2933; max-width: 560px;">
-      <h2 style="color: #b45309;">Reserva provisória</h2>
-      <p>Olá <strong>${reservation.guestName}</strong>,</p>
-      <p>Recebemos o teu pedido de reserva na <strong>${property.name}</strong>.</p>
-      <p style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 16px 0;">
-        <strong>Esta é uma reserva provisória</strong> — ainda não está confirmada. Enviaremos a confirmação final com o valor a pagar assim que validarmos o pedido.
+    <div style="font-family: Georgia, 'Times New Roman', serif; line-height: 1.6; color: #1f2933; max-width: 560px;">
+      <p>Olá ${reservation.guestName},</p>
+      <p>Obrigado. Recebemos o teu pedido na Casa do Penedo.</p>
+      <p>Vamos rever as datas e responder-te em breve com a confirmação.</p>
+      <p>
+        Check-in: <strong>${checkIn}</strong><br/>
+        Check-out: <strong>${checkOut}</strong><br/>
+        Hóspedes: <strong>${reservation.guests}</strong><br/>
+        ${discountPercent > 0 ? `Desconto: <strong>${discountPercent}%</strong><br/>` : ""}
+        Total estimado: <strong>${total}</strong>
       </p>
-      <table style="width: 100%; border-collapse: collapse; margin: 24px 0;">
-        <tr><td style="padding: 8px 0; color: #6b7280;">Check-in</td><td style="padding: 8px 0;"><strong>${checkIn}</strong></td></tr>
-        <tr><td style="padding: 8px 0; color: #6b7280;">Check-out</td><td style="padding: 8px 0;"><strong>${checkOut}</strong></td></tr>
-        <tr><td style="padding: 8px 0; color: #6b7280;">Hóspedes</td><td style="padding: 8px 0;"><strong>${reservation.guests}</strong></td></tr>
-        ${discountRow}
-        <tr><td style="padding: 8px 0; color: #6b7280;">Total estimado</td><td style="padding: 8px 0;"><strong>${total}</strong></td></tr>
-      </table>
-      <p style="color: #6b7280; margin-top: 32px;">Casa do Penedo</p>
+      <p>Se tiveres alguma dúvida, responde a este email.</p>
+      <p>
+        Cumprimentos,<br/>
+        Casa do Penedo<br/>
+        Fafe, Braga, Portugal
+      </p>
     </div>
   `;
 
@@ -537,7 +540,8 @@ export function buildOwnerNewReservationEmailContent({ reservation, property }: 
   return { subject, text, html };
 }
 
-export type PendingOwnerEmailJob = {
+export type PendingDomainEmailJob = {
+  kind: "owner" | "guest";
   reservationId: string;
   to: string;
   subject: string;
@@ -546,36 +550,74 @@ export type PendingOwnerEmailJob = {
   replyToName?: string;
 };
 
-/** Lista pedidos de gestão ainda não entregues em casa_do_penedo@casadopenedo.pt */
-export async function listPendingOwnerEmailJobs(limit = 20): Promise<PendingOwnerEmailJob[]> {
+/** @deprecated use PendingDomainEmailJob */
+export type PendingOwnerEmailJob = PendingDomainEmailJob;
+
+/** Lista emails que devem ir pelo SMTP do domínio (gestão + iCloud). */
+export async function listPendingOwnerEmailJobs(limit = 30): Promise<PendingDomainEmailJob[]> {
   const { prisma } = await import("../lib/prisma.js");
   const recipients = getOwnerNotificationRecipients();
-  const to = recipients[0] ?? DEFAULT_OWNER_EMAIL;
+  const ownerTo = recipients[0] ?? DEFAULT_OWNER_EMAIL;
 
-  const pending = await prisma.reservation.findMany({
-    where: {
-      ownerEmailSentAt: null,
-      status: { not: "CANCELLED" },
-    },
-    include: { property: true },
-    orderBy: { createdAt: "asc" },
-    take: limit,
-  });
+  const [ownerPending, guestPending] = await Promise.all([
+    prisma.reservation.findMany({
+      where: {
+        ownerEmailSentAt: null,
+        status: { not: "CANCELLED" },
+      },
+      include: { property: true },
+      orderBy: { createdAt: "asc" },
+      take: limit,
+    }),
+    prisma.reservation.findMany({
+      where: {
+        guestEmailSentAt: null,
+        guestEmail: { not: null },
+        status: { not: "CANCELLED" },
+      },
+      include: { property: true },
+      orderBy: { createdAt: "asc" },
+      take: limit,
+    }),
+  ]);
 
-  return pending.map((reservation) => {
+  const jobs: PendingDomainEmailJob[] = [];
+
+  for (const reservation of ownerPending) {
     const { subject, text } = buildOwnerNewReservationEmailContent({
       reservation,
       property: reservation.property,
     });
-    return {
+    jobs.push({
+      kind: "owner",
       reservationId: reservation.id,
-      to,
+      to: ownerTo,
       subject,
       text,
       replyToEmail: reservation.guestEmail?.trim() || undefined,
       replyToName: reservation.guestName,
-    };
-  });
+    });
+  }
+
+  for (const reservation of guestPending) {
+    const email = reservation.guestEmail?.trim();
+    if (!email || !shouldPreferDomainSmtpForRecipient(email)) {
+      continue;
+    }
+    const { subject, text } = buildEmailContent({
+      reservation,
+      property: reservation.property,
+    });
+    jobs.push({
+      kind: "guest",
+      reservationId: reservation.id,
+      to: email,
+      subject,
+      text,
+    });
+  }
+
+  return jobs.slice(0, limit);
 }
 
 export async function acknowledgeOwnerEmailSent(
@@ -587,6 +629,20 @@ export async function acknowledgeOwnerEmailSent(
     where: { id: reservationId },
     data: {
       ownerEmailSentAt: new Date(),
+      lastEmailError: error,
+    },
+  });
+}
+
+export async function acknowledgeGuestEmailSent(
+  reservationId: string,
+  error: string | null = null
+): Promise<void> {
+  const { prisma } = await import("../lib/prisma.js");
+  await prisma.reservation.update({
+    where: { id: reservationId },
+    data: {
+      guestEmailSentAt: new Date(),
       lastEmailError: error,
     },
   });
@@ -634,10 +690,9 @@ function withIdentity(content: { subject: string; text: string; html: string }) 
   };
 }
 
-/** Headers neutros e úteis para entregabilidade (sem Auto-Submitted). */
+/** Headers mínimos — sem List-Id (Apple trata como newsletter → spam). */
 function buildTransactionalHeaders(): Record<string, string> {
   return {
-    "List-Id": "<reservas.casadopenedo.pt>",
     "X-Entity-Ref-ID": `casa-do-penedo-${Date.now()}`,
   };
 }
@@ -906,8 +961,8 @@ async function sendEmail(payload: EmailPayload): Promise<EmailSendResult> {
           ...withIdentity({ subject: payload.subject, text: payload.text, html }),
         };
 
-  // O MX de casadopenedo.pt rejeita IPs da Brevo (SpamCop RBL). Entrega local via SMTP do alojamento.
-  if (isLocalDomainEmail(identified.to)) {
+  // Domínio próprio + iCloud/Apple: SMTP do alojamento (Brevo cai em spam no Apple / RBL no MX).
+  if (shouldPreferDomainSmtpForRecipient(identified.to)) {
     const domainResult = await sendViaDomainSmtp(identified);
     if (domainResult.sent) {
       console.log(`[email:sent] Domain SMTP → ${identified.to}`);
@@ -915,17 +970,19 @@ async function sendEmail(payload: EmailPayload): Promise<EmailSendResult> {
     }
 
     console.warn(
-      `[email:deliverability] Não foi possível entregar em ${identified.to} via SMTP local: ${domainResult.reason}`
+      `[email:deliverability] SMTP domínio falhou para ${identified.to}: ${domainResult.reason}`
     );
-    console.warn(
-      "[email:deliverability] A saltar Brevo para @casadopenedo.pt (RBL SpamCop). Usa Outlook/Gmail como notificação fiável."
-    );
-    return {
-      sent: false,
-      reason:
-        domainResult.reason ??
-        "casadopenedo.pt rejeita emails da Brevo (RBL). Configura DOMAIN_SMTP_* ou usa Outlook nas notificações.",
-    };
+
+    // Nunca usar Brevo para @casadopenedo.pt (RBL) nem para iCloud no Render free
+    // (entrega fica no relay Mac/GitHub).
+    if (isLocalDomainEmail(identified.to) || isAppleMailbox(identified.to)) {
+      return {
+        sent: false,
+        reason:
+          domainResult.reason ??
+          "Entrega adiada para SMTP do domínio (relay). Evita spam no iCloud / RBL no domínio.",
+      };
+    }
   }
 
   if (process.env.BREVO_API_KEY?.trim()) {
@@ -977,13 +1034,15 @@ export async function sendReservationConfirmation(input: ReservationEmailInput):
   }
 
   const { subject, text, html } = buildEmailContent(input);
+  const textOnly = shouldUseTextOnlyGuestEmail(email);
 
   return sendEmail({
     to: email,
     toName: input.reservation.guestName,
     subject,
     text,
-    html,
+    html: textOnly ? undefined : html,
+    textOnly,
     tags: ["reserva", "cliente"],
     includeOwnerBcc: false,
   });

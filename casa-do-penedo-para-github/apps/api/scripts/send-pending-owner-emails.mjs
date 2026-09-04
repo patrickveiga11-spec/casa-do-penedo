@@ -106,20 +106,15 @@ for (const job of jobs) {
         ? { name: job.replyToName || undefined, address: job.replyToEmail }
         : undefined,
     });
-    await api("POST", `/cron/pending-owner-emails/${job.reservationId}/ack`, {});
-    console.log(`OK  ${job.reservationId} → ${job.to}`);
+    await api("POST", `/cron/pending-owner-emails/${job.reservationId}/ack`, {
+      kind: job.kind || "owner",
+    });
+    console.log(`OK  [${job.kind || "owner"}] ${job.reservationId} → ${job.to}`);
     sent += 1;
   } catch (error) {
     failed += 1;
     const message = error instanceof Error ? error.message : String(error);
     console.error(`ERR ${job.reservationId}: ${message}`);
-    try {
-      await api("POST", `/cron/pending-owner-emails/${job.reservationId}/ack`, {
-        error: `Relay SMTP: ${message}`,
-      });
-    } catch {
-      // ignore ack failure
-    }
   }
 }
 

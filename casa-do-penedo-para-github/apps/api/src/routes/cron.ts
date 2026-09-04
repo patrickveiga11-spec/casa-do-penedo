@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { verifyCronRequest } from "../lib/cron-auth.js";
 import {
+  acknowledgeGuestEmailSent,
   acknowledgeOwnerEmailSent,
   listPendingOwnerEmailJobs,
 } from "../services/email.js";
@@ -44,16 +45,15 @@ export async function cronRoutes(app: FastifyInstance) {
   });
 
   /**
-   * Pedidos de gestão pendentes — o envio SMTP para @casadopenedo.pt
-   * corre fora do Render free (GitHub Action / Mac), porque o Render free
-   * bloqueia as portas 25/465/587.
+   * Pedidos pendentes via SMTP do domínio (gestão + iCloud).
+   * O Render free bloqueia portas 25/465/587 — o relay Mac/GitHub envia.
    */
   app.get("/cron/pending-owner-emails", async (request, reply) => {
     if (!verifyCronSecret(request, reply)) {
       return;
     }
 
-    const jobs = await listPendingOwnerEmailJobs(30);
+    const jobs = await listPendingOwnerEmailJobs(40);
     return reply.send({ count: jobs.length, jobs });
   });
 
@@ -63,8 +63,12 @@ export async function cronRoutes(app: FastifyInstance) {
     }
 
     const { id } = request.params as { id: string };
-    const body = (request.body ?? {}) as { error?: string | null };
-    await acknowledgeOwnerEmailSent(id, body.error ?? null);
-    return reply.send({ success: true, reservationId: id });
+    const body = (request.body ?? {}) as { error?: string | null; kind?: "owner" | "guest" };
+    if (body.kind === "guest") {
+      await acknowledgeGuestEmailSent(id, body.error ?? null);
+    } else {
+      await acknowledgeOwnerEmailSent(id, body.error ?? null);
+    }
+    return reply.send({ success: true, reservationId: id, kind: body.kind ?? "owner" });
   });
 }
