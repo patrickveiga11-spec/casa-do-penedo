@@ -14,6 +14,7 @@ import { DateField } from "../components/DateField";
 import { GuestsRegistryPanel } from "../components/GuestsRegistryPanel";
 import { MonthlyRevenueChart } from "../components/MonthlyRevenueChart";
 import { LogoHeader } from "../components/LogoHeader";
+import { InstallAppBanner } from "../components/InstallAppBanner";
 import { PricingInfo } from "../components/PricingInfo";
 import { CommsAlertBanner } from "../components/CommsAlertBanner";
 import { ReservationCommsIcons } from "../components/ReservationCommsIcons";
@@ -535,6 +536,7 @@ export default function AdminPage() {
       </div>
 
       <LogoHeader subtitle="Painel de gestão — reservas, calendário, tarifas e base de hóspedes" />
+      <InstallAppBanner variant="gestao" />
 
       {pendingReservations.length > 0 && (
         <section className="admin-alert admin-alert-pending">

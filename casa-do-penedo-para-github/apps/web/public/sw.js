@@ -1,5 +1,5 @@
 /* Casa do Penedo — service worker mínimo para instalação no telemóvel */
-const CACHE = "casa-do-penedo-v3";
+const CACHE = "casa-do-penedo-v4";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

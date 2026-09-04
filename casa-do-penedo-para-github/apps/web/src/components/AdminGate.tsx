@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { LogoHeader } from "./LogoHeader";
+import { InstallAppBanner } from "./InstallAppBanner";
 import { api } from "../api";
 import { clearAdminToken, getAdminToken } from "../lib/admin-session";
 
@@ -54,6 +55,7 @@ export function AdminGate({ children }: AdminGateProps) {
   return (
     <div className="theme-admin app-shell">
       <LogoHeader subtitle="Área de gestão — acesso reservado ao proprietário" />
+      <InstallAppBanner variant="gestao" />
       <section className="panel admin-login">
         <h2>Entrar na gestão</h2>
         <p className="muted-text">Esta área é só para ti. Os hóspedes usam a página de reservas.</p>

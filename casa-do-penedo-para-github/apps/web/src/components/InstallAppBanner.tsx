@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { useLanguage } from "../i18n/LanguageContext";
 
-/** Só a app pública — independente da gestão já instalada. */
-const DISMISS_KEY = "casa-penedo-install-dismissed-public-v2";
+export type InstallAppVariant = "public" | "gestao";
+
+const DISMISS_KEYS: Record<InstallAppVariant, string> = {
+  public: "casa-penedo-install-dismissed-public-v2",
+  gestao: "casa-penedo-install-dismissed-gestao-v1",
+};
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -23,19 +27,20 @@ function isStandalone() {
   );
 }
 
-export function InstallAppBanner() {
+export function InstallAppBanner({ variant = "public" }: { variant?: InstallAppVariant }) {
   const { t } = useLanguage();
+  const copy = variant === "gestao" ? t.installGestaoApp : t.installApp;
+  const dismissKey = DISMISS_KEYS[variant];
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
   const [manualHint, setManualHint] = useState(false);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    // Se já estás DENTRO da app pública instalada, não pedir de novo.
     if (isStandalone()) {
       return;
     }
 
-    if (localStorage.getItem(DISMISS_KEY) === "1") {
+    if (localStorage.getItem(dismissKey) === "1") {
       return;
     }
 
@@ -51,8 +56,6 @@ export function InstallAppBanner() {
 
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
 
-    // iOS nunca dispara beforeinstallprompt — mostra instrução.
-    // Android também pode não disparar se a gestão já estiver instalada no mesmo domínio.
     const timer = window.setTimeout(() => {
       if (!gotPrompt) {
         setManualHint(true);
@@ -64,10 +67,10 @@ export function InstallAppBanner() {
       window.removeEventListener("beforeinstallprompt", onBeforeInstall);
       window.clearTimeout(timer);
     };
-  }, []);
+  }, [dismissKey]);
 
   function dismiss() {
-    localStorage.setItem(DISMISS_KEY, "1");
+    localStorage.setItem(dismissKey, "1");
     setVisible(false);
     setDeferred(null);
     setManualHint(false);
@@ -92,27 +95,23 @@ export function InstallAppBanner() {
     return null;
   }
 
-  const hint = deferred
-    ? t.installApp.description
-    : isIosSafari()
-      ? t.installApp.iosHint
-      : t.installApp.manualHint;
+  const hint = deferred ? copy.description : isIosSafari() ? copy.iosHint : copy.manualHint;
 
   return (
-    <aside className="install-banner" role="region" aria-label={t.installApp.title}>
+    <aside className="install-banner" role="region" aria-label={copy.title}>
       <div className="install-banner-copy">
-        <strong>{t.installApp.title}</strong>
+        <strong>{copy.title}</strong>
         <p>{hint}</p>
-        {manualHint && !deferred ? <p className="install-banner-note">{t.installApp.separateNote}</p> : null}
+        {manualHint && !deferred ? <p className="install-banner-note">{copy.separateNote}</p> : null}
       </div>
       <div className="install-banner-actions">
         {deferred && (
           <button type="button" className="btn btn-small" onClick={install}>
-            {t.installApp.install}
+            {copy.install}
           </button>
         )}
         <button type="button" className="btn secondary btn-small" onClick={dismiss}>
-          {t.installApp.dismiss}
+          {copy.dismiss}
         </button>
       </div>
     </aside>
