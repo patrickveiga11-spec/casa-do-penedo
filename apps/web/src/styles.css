@@ -51,6 +51,12 @@ button {
   margin-bottom: 12px;
 }
 
+.language-selector--public {
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
 .language-selector button {
   display: inline-flex;
   align-items: center;
@@ -65,13 +71,28 @@ button {
   min-width: 42px;
 }
 
+.language-selector--public button {
+  gap: 3px;
+  padding: 3px 8px;
+  font-size: 0.7rem;
+  min-width: 0;
+}
+
 .language-selector .language-flag {
   font-size: 1.15rem;
   line-height: 1;
 }
 
+.language-selector--public .language-flag {
+  font-size: 0.9rem;
+}
+
 .language-selector .language-code {
   line-height: 1;
+}
+
+.language-selector--public .language-code {
+  font-size: 0.68rem;
 }
 
 .language-selector button.active {
@@ -1522,10 +1543,20 @@ button {
     justify-content: flex-end;
   }
 
+  .language-selector--public {
+    justify-content: center;
+  }
+
   .language-selector button {
     padding: 5px 10px;
     font-size: 0.8rem;
     min-width: 38px;
+  }
+
+  .language-selector--public button {
+    padding: 3px 7px;
+    font-size: 0.68rem;
+    min-width: 0;
   }
 
   .hero-logo {

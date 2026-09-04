@@ -185,7 +185,7 @@ export default function BookingPage() {
   if (loading) {
     return (
       <div className="app-shell">
-        <LanguageSelector />
+        <LanguageSelector compact />
         {t.loading}
       </div>
     );
@@ -194,7 +194,7 @@ export default function BookingPage() {
   if (error || !property) {
     return (
       <div className="app-shell">
-        <LanguageSelector />
+        <LanguageSelector compact />
         <div className="alert">{error ?? t.unavailable}</div>
       </div>
     );
@@ -203,7 +203,7 @@ export default function BookingPage() {
   if (confirmation) {
     return (
       <div className="app-shell">
-        <LanguageSelector />
+        <LanguageSelector compact />
         <LogoHeader subtitle={t.successSubtitle} />
         <section className="panel success-panel">
           <h2>{formatMessage("thankYou", { name: confirmation.guestName })}</h2>
@@ -244,7 +244,7 @@ export default function BookingPage() {
 
   return (
     <div className="app-shell">
-      <LanguageSelector />
+      <LanguageSelector compact />
       <LogoHeader subtitle={t.subtitle} />
       <InstallAppBanner />
 
