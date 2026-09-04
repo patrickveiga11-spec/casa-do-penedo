@@ -271,5 +271,5 @@ export function shouldUseTextOnlyGuestEmail(guestEmail: string): boolean {
 /** Motivo típico quando o Render free adia o SMTP do domínio. */
 export function isDomainSmtpDeferredReason(reason?: string | null): boolean {
   if (!reason) return false;
-  return /adiado|relay|bloqueia portas SMTP|SMTP do domínio/i.test(reason);
+  return /adiado|relay|bloqueia portas SMTP|SMTP do domínio|agente de envios|webhook/i.test(reason);
 }

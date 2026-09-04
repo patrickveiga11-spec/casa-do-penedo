@@ -977,14 +977,89 @@ function createDomainSmtpTransport() {
   });
 }
 
+async function sendViaDomainWebhook(payload: EmailPayload): Promise<EmailSendResult> {
+  const url = process.env.DOMAIN_MAIL_WEBHOOK_URL?.trim();
+  const secret = process.env.DOMAIN_MAIL_WEBHOOK_SECRET?.trim();
+  if (!url || !secret) {
+    return { sent: false, reason: "DOMAIN_MAIL_WEBHOOK_URL/SECRET em falta" };
+  }
+
+  const from = parseFromAddress(getFromAddress());
+  const replyTo = payload.replyTo ?? getReplyToAddress();
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20_000);
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-Casa-Relay-Secret": secret,
+      },
+      body: JSON.stringify({
+        to: payload.to,
+        toName: payload.toName,
+        subject: payload.subject,
+        text: payload.text,
+        fromEmail: from.email,
+        fromName: from.name,
+        replyTo: replyTo.email,
+        attachments: payload.attachments?.map((file) => ({
+          filename: file.filename,
+          contentType: file.contentType,
+          contentBase64: file.content.toString("base64"),
+        })),
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    const raw = await response.text();
+    let data: { ok?: boolean; error?: string } = {};
+    try {
+      data = raw ? (JSON.parse(raw) as { ok?: boolean; error?: string }) : {};
+    } catch {
+      data = { error: raw.slice(0, 200) };
+    }
+
+    if (!response.ok || data.ok === false) {
+      return {
+        sent: false,
+        reason: data.error || `Webhook HTTP ${response.status}`,
+      };
+    }
+
+    return { sent: true };
+  } catch (error) {
+    return {
+      sent: false,
+      reason: error instanceof Error ? error.message : "Erro no webhook de email do domínio",
+    };
+  }
+}
+
 async function sendViaDomainSmtp(payload: EmailPayload): Promise<EmailSendResult> {
-  // Render free bloqueia outbound SMTP (25/465/587). Não tentar daqui —
-  // o job GitHub/Mac (send-pending-owner-emails) entrega depois.
+  // 1) Webhook HTTPS no alojamento (funciona no Render free — não usa portas SMTP).
+  const webhookConfigured = Boolean(
+    process.env.DOMAIN_MAIL_WEBHOOK_URL?.trim() && process.env.DOMAIN_MAIL_WEBHOOK_SECRET?.trim()
+  );
+  if (webhookConfigured) {
+    const webhookResult = await sendViaDomainWebhook(payload);
+    if (webhookResult.sent) {
+      console.log(`[email:sent] Domain webhook → ${payload.to}`);
+      return webhookResult;
+    }
+    console.warn(`[email:deliverability] Webhook domínio falhou: ${webhookResult.reason}`);
+  }
+
+  // 2) SMTP directo (Mac / Render pago). No Render free as portas 25/465/587 estão bloqueadas.
   if (process.env.RENDER === "true" || process.env.DOMAIN_SMTP_RELAY_ONLY === "1") {
     return {
       sent: false,
-      reason:
-        "SMTP do domínio adiado (Render free bloqueia portas SMTP). Entrega via relay GitHub/Mac.",
+      reason: webhookConfigured
+        ? "SMTP/webhook do domínio falharam — pendente no agente de envios"
+        : "SMTP do domínio adiado (Render free bloqueia portas SMTP). Entrega via agente de envios.",
     };
   }
 
@@ -1024,9 +1099,17 @@ async function sendViaDomainSmtp(payload: EmailPayload): Promise<EmailSendResult
     return { sent: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro ao enviar via SMTP do domínio";
+
+    if (webhookConfigured) {
+      const webhookResult = await sendViaDomainWebhook(payload);
+      if (webhookResult.sent) {
+        return webhookResult;
+      }
+    }
+
     const hint =
       /timeout|ETIMEDOUT|ECONNREFUSED|ESOCKET/i.test(message)
-        ? " (Render free bloqueia portas SMTP 25/465/587 — faz upgrade para Starter ou usa DOMAIN_MAIL_WEBHOOK)"
+        ? " (SMTP bloqueado — agente de envios / webhook do domínio)"
         : "";
     return {
       sent: false,
