@@ -4,7 +4,7 @@ const CACHE = "casa-do-penedo-v1";
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE).then((cache) =>
-      cache.addAll(["/", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png"]).catch(() => undefined)
+      cache.addAll(["/", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/hero-bg.jpg"]).catch(() => undefined)
     )
   );
   self.skipWaiting();

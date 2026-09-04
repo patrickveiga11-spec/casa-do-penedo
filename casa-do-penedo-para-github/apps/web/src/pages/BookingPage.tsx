@@ -184,182 +184,190 @@ export default function BookingPage() {
 
   if (loading) {
     return (
-      <div className="app-shell">
-        <LanguageSelector compact />
-        {t.loading}
+      <div className="page-public">
+        <div className="app-shell">
+          <LanguageSelector compact />
+          {t.loading}
+        </div>
       </div>
     );
   }
 
   if (error || !property) {
     return (
-      <div className="app-shell">
-        <LanguageSelector compact />
-        <div className="alert">{error ?? t.unavailable}</div>
+      <div className="page-public">
+        <div className="app-shell">
+          <LanguageSelector compact />
+          <div className="alert">{error ?? t.unavailable}</div>
+        </div>
       </div>
     );
   }
 
   if (confirmation) {
     return (
-      <div className="app-shell">
-        <LanguageSelector compact />
-        <LogoHeader subtitle={t.successSubtitle} />
-        <section className="panel success-panel">
-          <h2>{formatMessage("thankYou", { name: confirmation.guestName })}</h2>
-          <p>{t.provisionalRegistered}</p>
-          <div className="confirmation-grid">
-            <div>
-              <span className="muted-text">{t.checkIn}</span>
-              <strong>{formatDate(confirmation.checkIn, intlLocale)}</strong>
+      <div className="page-public">
+        <div className="app-shell">
+          <LanguageSelector compact />
+          <LogoHeader subtitle={t.successSubtitle} />
+          <section className="panel success-panel">
+            <h2>{formatMessage("thankYou", { name: confirmation.guestName })}</h2>
+            <p>{t.provisionalRegistered}</p>
+            <div className="confirmation-grid">
+              <div>
+                <span className="muted-text">{t.checkIn}</span>
+                <strong>{formatDate(confirmation.checkIn, intlLocale)}</strong>
+              </div>
+              <div>
+                <span className="muted-text">{t.checkOut}</span>
+                <strong>{formatDate(confirmation.checkOut, intlLocale)}</strong>
+              </div>
+              <div>
+                <span className="muted-text">{t.guests}</span>
+                <strong>{confirmation.guests}</strong>
+              </div>
+              <div>
+                <span className="muted-text">{t.estimatedTotalShort}</span>
+                <strong>{formatMoney(confirmation.totalPrice, confirmation.currency, intlLocale)}</strong>
+              </div>
             </div>
-            <div>
-              <span className="muted-text">{t.checkOut}</span>
-              <strong>{formatDate(confirmation.checkOut, intlLocale)}</strong>
-            </div>
-            <div>
-              <span className="muted-text">{t.guests}</span>
-              <strong>{confirmation.guests}</strong>
-            </div>
-            <div>
-              <span className="muted-text">{t.estimatedTotalShort}</span>
-              <strong>{formatMoney(confirmation.totalPrice, confirmation.currency, intlLocale)}</strong>
-            </div>
-          </div>
-          {confirmation.emailSent ? (
-            <p className="muted-text">
-              {interpolate(t.emailSent, { email: confirmation.guestEmail })}
-            </p>
-          ) : (
-            <p className="muted-text">{t.emailFailed}</p>
-          )}
-          <p className="muted-text">{t.finalConfirmationNote}</p>
-          <button type="button" className="btn" onClick={() => setConfirmation(null)}>
-            {t.newBooking}
-          </button>
-        </section>
+            {confirmation.emailSent ? (
+              <p className="muted-text">
+                {interpolate(t.emailSent, { email: confirmation.guestEmail })}
+              </p>
+            ) : (
+              <p className="muted-text">{t.emailFailed}</p>
+            )}
+            <p className="muted-text">{t.finalConfirmationNote}</p>
+            <button type="button" className="btn" onClick={() => setConfirmation(null)}>
+              {t.newBooking}
+            </button>
+          </section>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="app-shell">
-      <LanguageSelector compact />
-      <LogoHeader subtitle={t.subtitle} />
-      <InstallAppBanner />
+    <div className="page-public">
+      <div className="app-shell">
+        <LanguageSelector compact />
+        <LogoHeader subtitle={t.subtitle} />
+        <InstallAppBanner />
 
-      <div className="layout">
-        <section className="panel">
-          <h2>{t.availability}</h2>
-          <CalendarView
-            reservations={reservations}
-            blocks={blocks}
-            from={range.from}
-            hideGuestNames
-            labels={t.calendar}
-            monthLabel={range.label}
-            selectedRange={
-              form.checkIn && form.checkOut
-                ? { checkIn: form.checkIn, checkOut: form.checkOut }
-                : undefined
-            }
-            onPrevMonth={() =>
-              setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))
-            }
-            onNextMonth={() =>
-              setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))
-            }
-          />
-        </section>
+        <div className="layout">
+          <section className="panel">
+            <h2>{t.availability}</h2>
+            <CalendarView
+              reservations={reservations}
+              blocks={blocks}
+              from={range.from}
+              hideGuestNames
+              labels={t.calendar}
+              monthLabel={range.label}
+              selectedRange={
+                form.checkIn && form.checkOut
+                  ? { checkIn: form.checkIn, checkOut: form.checkOut }
+                  : undefined
+              }
+              onPrevMonth={() =>
+                setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))
+              }
+              onNextMonth={() =>
+                setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))
+              }
+            />
+          </section>
 
-        <section className="stack">
-          <div className="panel">
-            <h2>{t.book}</h2>
-            <form className="stack" onSubmit={handleSubmit}>
-              <div className="field">
-                <label htmlFor="guestName">{t.fullName}</label>
-                <input
-                  id="guestName"
-                  value={form.guestName}
-                  onChange={(event) => setForm({ ...form, guestName: event.target.value })}
-                  required
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="guestEmail">{t.email}</label>
-                <input
-                  id="guestEmail"
-                  type="email"
-                  value={form.guestEmail}
-                  onChange={(event) => setForm({ ...form, guestEmail: event.target.value })}
-                  required
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="guestPhone">{t.phone}</label>
-                <input
-                  id="guestPhone"
-                  type="tel"
-                  value={form.guestPhone}
-                  onChange={(event) => setForm({ ...form, guestPhone: event.target.value })}
-                  placeholder={t.phonePlaceholder}
-                  required
-                  minLength={4}
-                />
-              </div>
-              <div className="field-row">
-                <DateField
-                  id="checkIn"
-                  label={t.checkIn}
-                  value={form.checkIn}
-                  onChange={(checkIn) => setForm({ ...form, checkIn })}
-                  openCalendarLabel={t.openCalendar}
-                  chooseDateLabel={t.chooseDate}
-                  required
-                />
-                <DateField
-                  id="checkOut"
-                  label={t.checkOut}
-                  value={form.checkOut}
-                  onChange={(checkOut) => setForm({ ...form, checkOut })}
-                  openCalendarLabel={t.openCalendar}
-                  chooseDateLabel={t.chooseDate}
-                  required
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="guests">{t.guests}</label>
-                <input
-                  id="guests"
-                  type="number"
-                  min={1}
-                  max={property.maxGuests}
-                  value={form.guests}
-                  onChange={(event) => setForm({ ...form, guests: Number(event.target.value) })}
-                />
-              </div>
-
-              {quoteTotal !== null && (
-                <div className="quote-box">
-                  {t.estimatedTotal}
-                  <strong>{formatMoney(quoteTotal, property.currency, intlLocale)}</strong>
+          <section className="stack">
+            <div className="panel">
+              <h2>{t.book}</h2>
+              <form className="stack" onSubmit={handleSubmit}>
+                <div className="field">
+                  <label htmlFor="guestName">{t.fullName}</label>
+                  <input
+                    id="guestName"
+                    value={form.guestName}
+                    onChange={(event) => setForm({ ...form, guestName: event.target.value })}
+                    required
+                  />
                 </div>
-              )}
+                <div className="field">
+                  <label htmlFor="guestEmail">{t.email}</label>
+                  <input
+                    id="guestEmail"
+                    type="email"
+                    value={form.guestEmail}
+                    onChange={(event) => setForm({ ...form, guestEmail: event.target.value })}
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="guestPhone">{t.phone}</label>
+                  <input
+                    id="guestPhone"
+                    type="tel"
+                    value={form.guestPhone}
+                    onChange={(event) => setForm({ ...form, guestPhone: event.target.value })}
+                    placeholder={t.phonePlaceholder}
+                    required
+                    minLength={4}
+                  />
+                </div>
+                <div className="field-row">
+                  <DateField
+                    id="checkIn"
+                    label={t.checkIn}
+                    value={form.checkIn}
+                    onChange={(checkIn) => setForm({ ...form, checkIn })}
+                    openCalendarLabel={t.openCalendar}
+                    chooseDateLabel={t.chooseDate}
+                    required
+                  />
+                  <DateField
+                    id="checkOut"
+                    label={t.checkOut}
+                    value={form.checkOut}
+                    onChange={(checkOut) => setForm({ ...form, checkOut })}
+                    openCalendarLabel={t.openCalendar}
+                    chooseDateLabel={t.chooseDate}
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="guests">{t.guests}</label>
+                  <input
+                    id="guests"
+                    type="number"
+                    min={1}
+                    max={property.maxGuests}
+                    value={form.guests}
+                    onChange={(event) => setForm({ ...form, guests: Number(event.target.value) })}
+                  />
+                </div>
 
-              {formError && <div className="alert">{formError}</div>}
+                {quoteTotal !== null && (
+                  <div className="quote-box">
+                    {t.estimatedTotal}
+                    <strong>{formatMoney(quoteTotal, property.currency, intlLocale)}</strong>
+                  </div>
+                )}
 
-              <button className="btn btn-large" type="submit" disabled={submitting}>
-                {submitting ? t.submitting : t.confirmBooking}
-              </button>
-            </form>
-          </div>
+                {formError && <div className="alert">{formError}</div>}
 
-          <PricingInfo rules={pricingRules} publicPage />
-        </section>
+                <button className="btn btn-large" type="submit" disabled={submitting}>
+                  {submitting ? t.submitting : t.confirmBooking}
+                </button>
+              </form>
+            </div>
+
+            <PricingInfo rules={pricingRules} publicPage />
+          </section>
+        </div>
+
+        <WelcomeGuideCard />
+        <RegulationsFooter />
       </div>
-
-      <WelcomeGuideCard />
-      <RegulationsFooter />
     </div>
   );
 }
