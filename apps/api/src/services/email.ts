@@ -483,7 +483,7 @@ function getReplyToAddress() {
   };
 }
 
-function buildOwnerNewReservationEmailContent({ reservation, property }: ReservationEmailInput) {
+export function buildOwnerNewReservationEmailContent({ reservation, property }: ReservationEmailInput) {
   const checkIn = formatDate(reservation.checkIn);
   const checkOut = formatDate(reservation.checkOut);
   const total = formatMoney(Number(reservation.totalPrice), reservation.currency);
@@ -535,6 +535,61 @@ function buildOwnerNewReservationEmailContent({ reservation, property }: Reserva
   `;
 
   return { subject, text, html };
+}
+
+export type PendingOwnerEmailJob = {
+  reservationId: string;
+  to: string;
+  subject: string;
+  text: string;
+  replyToEmail?: string;
+  replyToName?: string;
+};
+
+/** Lista pedidos de gestão ainda não entregues em casa_do_penedo@casadopenedo.pt */
+export async function listPendingOwnerEmailJobs(limit = 20): Promise<PendingOwnerEmailJob[]> {
+  const { prisma } = await import("../lib/prisma.js");
+  const recipients = getOwnerNotificationRecipients();
+  const to = recipients[0] ?? DEFAULT_OWNER_EMAIL;
+
+  const pending = await prisma.reservation.findMany({
+    where: {
+      ownerEmailSentAt: null,
+      status: { not: "CANCELLED" },
+    },
+    include: { property: true },
+    orderBy: { createdAt: "asc" },
+    take: limit,
+  });
+
+  return pending.map((reservation) => {
+    const { subject, text } = buildOwnerNewReservationEmailContent({
+      reservation,
+      property: reservation.property,
+    });
+    return {
+      reservationId: reservation.id,
+      to,
+      subject,
+      text,
+      replyToEmail: reservation.guestEmail?.trim() || undefined,
+      replyToName: reservation.guestName,
+    };
+  });
+}
+
+export async function acknowledgeOwnerEmailSent(
+  reservationId: string,
+  error: string | null = null
+): Promise<void> {
+  const { prisma } = await import("../lib/prisma.js");
+  await prisma.reservation.update({
+    where: { id: reservationId },
+    data: {
+      ownerEmailSentAt: new Date(),
+      lastEmailError: error,
+    },
+  });
 }
 
 function getFromAddress() {
@@ -732,11 +787,24 @@ function createDomainSmtpTransport() {
     secure: port === 465,
     requireTLS: port === 587,
     auth: { user, pass },
+    connectionTimeout: 8_000,
+    greetingTimeout: 8_000,
+    socketTimeout: 12_000,
     tls: { minVersion: "TLSv1.2" },
   });
 }
 
 async function sendViaDomainSmtp(payload: EmailPayload): Promise<EmailSendResult> {
+  // Render free bloqueia outbound SMTP (25/465/587). Não tentar daqui —
+  // o job GitHub/Mac (send-pending-owner-emails) entrega depois.
+  if (process.env.RENDER === "true" || process.env.DOMAIN_SMTP_RELAY_ONLY === "1") {
+    return {
+      sent: false,
+      reason:
+        "SMTP do domínio adiado (Render free bloqueia portas SMTP). Entrega via relay GitHub/Mac.",
+    };
+  }
+
   const transport = createDomainSmtpTransport();
   if (!transport) {
     return {
@@ -772,9 +840,14 @@ async function sendViaDomainSmtp(payload: EmailPayload): Promise<EmailSendResult
     });
     return { sent: true };
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao enviar via SMTP do domínio";
+    const hint =
+      /timeout|ETIMEDOUT|ECONNREFUSED|ESOCKET/i.test(message)
+        ? " (Render free bloqueia portas SMTP 25/465/587 — faz upgrade para Starter ou usa DOMAIN_MAIL_WEBHOOK)"
+        : "";
     return {
       sent: false,
-      reason: error instanceof Error ? error.message : "Erro ao enviar via SMTP do domínio",
+      reason: `${message}${hint}`,
     };
   }
 }
