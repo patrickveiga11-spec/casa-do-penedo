@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, type Property, type Reservation } from "../api";
 import { CalendarView } from "../components/CalendarView";
 import { DateField } from "../components/DateField";
+import { InstallAppBanner } from "../components/InstallAppBanner";
 import { LanguageSelector } from "../components/LanguageSelector";
 import { LogoHeader } from "../components/LogoHeader";
 import { PricingInfo } from "../components/PricingInfo";
@@ -245,6 +246,7 @@ export default function BookingPage() {
     <div className="app-shell">
       <LanguageSelector />
       <LogoHeader subtitle={t.subtitle} />
+      <InstallAppBanner />
 
       <div className="layout">
         <section className="panel">

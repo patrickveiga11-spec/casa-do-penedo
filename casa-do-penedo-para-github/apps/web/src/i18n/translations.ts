@@ -74,6 +74,13 @@ export const translations = {
       title: "Regulamento interno",
       openPdf: "Abrir PDF",
     },
+    installApp: {
+      title: "Instalar no telemóvel",
+      description: "Adiciona a Casa do Penedo ao ecrã inicial para reservar mais depressa.",
+      iosHint: "No Safari: toca em Partilhar e depois em «Adicionar ao Ecrã Principal».",
+      install: "Instalar",
+      dismiss: "Agora não",
+    },
   },
   en: {
     loading: "Loading…",
@@ -136,6 +143,13 @@ export const translations = {
     regulations: {
       title: "House rules",
       openPdf: "Open PDF",
+    },
+    installApp: {
+      title: "Install on your phone",
+      description: "Add Casa do Penedo to your home screen for faster booking.",
+      iosHint: "In Safari: tap Share, then «Add to Home Screen».",
+      install: "Install",
+      dismiss: "Not now",
     },
   },
   fr: {
@@ -200,6 +214,13 @@ export const translations = {
       title: "Règlement intérieur",
       openPdf: "Ouvrir le PDF",
     },
+    installApp: {
+      title: "Installer sur le téléphone",
+      description: "Ajoutez Casa do Penedo à l'écran d'accueil pour réserver plus vite.",
+      iosHint: "Dans Safari : touchez Partager, puis « Sur l'écran d'accueil ».",
+      install: "Installer",
+      dismiss: "Pas maintenant",
+    },
   },
   es: {
     loading: "Cargando…",
@@ -262,6 +283,13 @@ export const translations = {
     regulations: {
       title: "Reglamento interno",
       openPdf: "Abrir PDF",
+    },
+    installApp: {
+      title: "Instalar en el móvil",
+      description: "Añade Casa do Penedo a la pantalla de inicio para reservar más rápido.",
+      iosHint: "En Safari: toca Compartir y luego «Añadir a pantalla de inicio».",
+      install: "Instalar",
+      dismiss: "Ahora no",
     },
   },
 } as const;
