@@ -480,10 +480,13 @@ function buildOwnerNewReservationEmailContent({ reservation, property }: Reserva
   const checkOut = formatDate(reservation.checkOut);
   const total = formatMoney(Number(reservation.totalPrice), reservation.currency);
 
-  const subject = `Novo pedido de reserva — ${reservation.guestName} (${checkIn})`;
+  // Assunto neutro (sem CAPS / urgência) — reduz spam no Outlook.
+  const subject = `Pedido de reserva: ${reservation.guestName} — ${checkIn}`;
 
   const text = [
-    "Recebeste um novo pedido de reserva na Casa do Penedo.",
+    `Olá,`,
+    "",
+    `Há um novo pedido de reserva em ${property.name}.`,
     "",
     `Hóspede: ${reservation.guestName}`,
     reservation.guestEmail ? `Email: ${reservation.guestEmail}` : "Email: —",
@@ -495,30 +498,31 @@ function buildOwnerNewReservationEmailContent({ reservation, property }: Reserva
     `Total estimado: ${total}`,
     "",
     "Estado: pendente de validação",
-    "Abrir gestão: https://casa-do-penedo.vercel.app/gestao",
+    "",
+    "Gestão:",
+    "https://casa-do-penedo.vercel.app/gestao",
     "",
     "Casa do Penedo",
+    "Fafe, Braga, Portugal",
+    "casa_do_penedo@casadopenedo.pt",
   ]
     .filter(Boolean)
     .join("\n");
 
   const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2933; max-width: 560px;">
-      <h2 style="color: #b45309; margin-top: 0;">Novo pedido de reserva</h2>
-      <p>Recebeste um novo pedido de reserva na <strong>${property.name}</strong>.</p>
-      <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-        <tr><td style="padding: 8px 0; color: #6b7280;">Hóspede</td><td style="padding: 8px 0;"><strong>${reservation.guestName}</strong></td></tr>
-        <tr><td style="padding: 8px 0; color: #6b7280;">Email</td><td style="padding: 8px 0;"><strong>${reservation.guestEmail ?? "—"}</strong></td></tr>
-        <tr><td style="padding: 8px 0; color: #6b7280;">Telemóvel</td><td style="padding: 8px 0;"><strong>${reservation.guestPhone ?? "—"}</strong></td></tr>
-        <tr><td style="padding: 8px 0; color: #6b7280;">Check-in</td><td style="padding: 8px 0;"><strong>${checkIn}</strong></td></tr>
-        <tr><td style="padding: 8px 0; color: #6b7280;">Check-out</td><td style="padding: 8px 0;"><strong>${checkOut}</strong></td></tr>
-        <tr><td style="padding: 8px 0; color: #6b7280;">Hóspedes</td><td style="padding: 8px 0;"><strong>${reservation.guests}</strong></td></tr>
-        <tr><td style="padding: 8px 0; color: #6b7280;">Total estimado</td><td style="padding: 8px 0;"><strong>${total}</strong></td></tr>
-      </table>
-      <p style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 16px;">
-        Estado: <strong>pendente de validação</strong>
+      <p>Há um novo pedido de reserva em <strong>${property.name}</strong>.</p>
+      <p>
+        Hóspede: <strong>${reservation.guestName}</strong><br/>
+        Email: <strong>${reservation.guestEmail ?? "—"}</strong><br/>
+        Telemóvel: <strong>${reservation.guestPhone ?? "—"}</strong><br/>
+        Check-in: <strong>${checkIn}</strong><br/>
+        Check-out: <strong>${checkOut}</strong><br/>
+        Hóspedes: <strong>${reservation.guests}</strong><br/>
+        Total estimado: <strong>${total}</strong>
       </p>
-      <p><a href="https://casa-do-penedo.vercel.app/gestao" style="display:inline-block;background:#2d6a4f;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700;">Abrir gestão</a></p>
+      <p>Estado: pendente de validação</p>
+      <p><a href="https://casa-do-penedo.vercel.app/gestao">Abrir gestão</a></p>
     </div>
   `;
 

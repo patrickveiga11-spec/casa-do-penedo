@@ -243,6 +243,7 @@ export async function resolveBrevoSender(apiKey: string): Promise<{ id?: number;
   };
 }
 
-export function shouldUseTextOnlyOwnerEmail(ownerEmail: string, senderEmail: string): boolean {
-  return isMicrosoftMailbox(ownerEmail) && isFreeEmailAddress(senderEmail);
+export function shouldUseTextOnlyOwnerEmail(ownerEmail: string, _senderEmail?: string): boolean {
+  // Outlook/Hotmail filtram HTML promocional com mais agressividade.
+  return isMicrosoftMailbox(ownerEmail);
 }
