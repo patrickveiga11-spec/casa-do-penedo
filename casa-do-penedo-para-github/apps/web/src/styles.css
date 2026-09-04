@@ -187,6 +187,15 @@ button {
   gap: 8px;
 }
 
+.install-banner-gestao {
+  border: 2px solid var(--accent);
+  background: #eff6ff;
+}
+
+.theme-admin .install-banner-gestao strong {
+  color: #1e3a8a;
+}
+
 .language-selector button:not(.active):hover {
   border-color: var(--accent);
   color: var(--accent);

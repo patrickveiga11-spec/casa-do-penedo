@@ -5,7 +5,7 @@ export type InstallAppVariant = "public" | "gestao";
 
 const DISMISS_KEYS: Record<InstallAppVariant, string> = {
   public: "casa-penedo-install-dismissed-public-v2",
-  gestao: "casa-penedo-install-dismissed-gestao-v1",
+  gestao: "casa-penedo-install-dismissed-gestao-v2",
 };
 
 interface BeforeInstallPromptEvent extends Event {
@@ -34,9 +34,15 @@ export function InstallAppBanner({ variant = "public" }: { variant?: InstallAppV
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
   const [manualHint, setManualHint] = useState(false);
   const [visible, setVisible] = useState(false);
+  const [runningStandalone, setRunningStandalone] = useState(false);
 
   useEffect(() => {
-    if (isStandalone()) {
+    const standalone = isStandalone();
+    setRunningStandalone(standalone);
+
+    // App pública já instalada: não pedir de novo.
+    // Gestão: continua a mostrar (ícone antigo / scope errado é o caso comum).
+    if (standalone && variant === "public") {
       return;
     }
 
@@ -56,18 +62,22 @@ export function InstallAppBanner({ variant = "public" }: { variant?: InstallAppV
 
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
 
+    // Mostrar logo — não depender só do evento do browser.
+    setManualHint(true);
+    setVisible(true);
+
     const timer = window.setTimeout(() => {
       if (!gotPrompt) {
         setManualHint(true);
         setVisible(true);
       }
-    }, 800);
+    }, 300);
 
     return () => {
       window.removeEventListener("beforeinstallprompt", onBeforeInstall);
       window.clearTimeout(timer);
     };
-  }, [dismissKey]);
+  }, [dismissKey, variant]);
 
   function dismiss() {
     localStorage.setItem(dismissKey, "1");
@@ -95,10 +105,16 @@ export function InstallAppBanner({ variant = "public" }: { variant?: InstallAppV
     return null;
   }
 
-  const hint = deferred ? copy.description : isIosSafari() ? copy.iosHint : copy.manualHint;
+  const hint = deferred
+    ? copy.description
+    : runningStandalone && variant === "gestao"
+      ? copy.standaloneHint
+      : isIosSafari()
+        ? copy.iosHint
+        : copy.manualHint;
 
   return (
-    <aside className="install-banner" role="region" aria-label={copy.title}>
+    <aside className={`install-banner${variant === "gestao" ? " install-banner-gestao" : ""}`} role="region" aria-label={copy.title}>
       <div className="install-banner-copy">
         <strong>{copy.title}</strong>
         <p>{hint}</p>
