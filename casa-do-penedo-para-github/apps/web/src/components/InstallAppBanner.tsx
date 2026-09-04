@@ -108,7 +108,7 @@ export function InstallAppBanner({ variant = "public" }: { variant?: InstallAppV
   const hint = deferred
     ? copy.description
     : runningStandalone && variant === "gestao"
-      ? copy.standaloneHint
+      ? t.installGestaoApp.standaloneHint
       : isIosSafari()
         ? copy.iosHint
         : copy.manualHint;
