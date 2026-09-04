@@ -288,7 +288,7 @@ function buildFinalConfirmationEmailContent(
   const discountLine =
     discountPercent > 0 ? `Desconto aplicado: ${discountPercent}%` : "";
 
-  const subject = `Confirmação final — ${property.name}`;
+  const subject = `Casa do Penedo — reserva confirmada`;
   const { textBlock: accessCodeText, htmlBlock: accessCodeHtml } = buildAccessCodeEmailContent(
     includeGuideNote ? reservation.accessCode : null
   );
@@ -314,8 +314,10 @@ function buildFinalConfirmationEmailContent(
     "",
     "Entraremos em contacto em breve para acertar o pagamento e os detalhes da estadia.",
     "",
-    "Obrigado,",
+    "Cumprimentos,",
     "Casa do Penedo",
+    "Fafe, Braga, Portugal",
+    "casa_do_penedo@casadopenedo.pt",
   ]
     .filter(Boolean)
     .join("\n");
@@ -540,48 +542,55 @@ export function buildOwnerNewReservationEmailContent({ reservation, property }: 
   return { subject, text, html };
 }
 
+export type PendingDomainEmailKind =
+  | "owner"
+  | "guest"
+  | "guest-final"
+  | "guest-welcome"
+  | "guest-thankyou";
+
 export type PendingDomainEmailJob = {
-  kind: "owner" | "guest";
+  kind: PendingDomainEmailKind;
   reservationId: string;
   to: string;
   subject: string;
   text: string;
   replyToEmail?: string;
   replyToName?: string;
+  attachments?: Array<{
+    filename: string;
+    contentBase64: string;
+    contentType: string;
+  }>;
 };
 
 /** @deprecated use PendingDomainEmailJob */
 export type PendingOwnerEmailJob = PendingDomainEmailJob;
 
-/** Lista emails que devem ir pelo SMTP do domínio (gestão + iCloud). */
-export async function listPendingOwnerEmailJobs(limit = 30): Promise<PendingDomainEmailJob[]> {
+function attachmentPayload(file: EmailAttachment | null | undefined) {
+  if (!file) return null;
+  return {
+    filename: file.filename,
+    contentBase64: file.content.toString("base64"),
+    contentType: file.contentType,
+  };
+}
+
+/** Lista emails que devem ir pelo SMTP do domínio (gestão + iCloud + automáticos). */
+export async function listPendingOwnerEmailJobs(limit = 40): Promise<PendingDomainEmailJob[]> {
   const { prisma } = await import("../lib/prisma.js");
+  const { daysUntilCheckIn } = await import("../lib/dates.js");
   const recipients = getOwnerNotificationRecipients();
   const ownerTo = recipients[0] ?? DEFAULT_OWNER_EMAIL;
-
-  const [ownerPending, guestPending] = await Promise.all([
-    prisma.reservation.findMany({
-      where: {
-        ownerEmailSentAt: null,
-        status: { not: "CANCELLED" },
-      },
-      include: { property: true },
-      orderBy: { createdAt: "asc" },
-      take: limit,
-    }),
-    prisma.reservation.findMany({
-      where: {
-        guestEmailSentAt: null,
-        guestEmail: { not: null },
-        status: { not: "CANCELLED" },
-      },
-      include: { property: true },
-      orderBy: { createdAt: "asc" },
-      take: limit,
-    }),
-  ]);
-
   const jobs: PendingDomainEmailJob[] = [];
+  const welcomeWithinTwoDays = (checkIn: Date) => daysUntilCheckIn(checkIn) <= 2;
+
+  const ownerPending = await prisma.reservation.findMany({
+    where: { ownerEmailSentAt: null, status: { not: "CANCELLED" } },
+    include: { property: true },
+    orderBy: { createdAt: "asc" },
+    take: limit,
+  });
 
   for (const reservation of ownerPending) {
     const { subject, text } = buildOwnerNewReservationEmailContent({
@@ -599,22 +608,102 @@ export async function listPendingOwnerEmailJobs(limit = 30): Promise<PendingDoma
     });
   }
 
-  for (const reservation of guestPending) {
+  const guestCandidates = await prisma.reservation.findMany({
+    where: {
+      guestEmail: { not: null },
+      status: { not: "CANCELLED" },
+    },
+    include: { property: true },
+    orderBy: { createdAt: "asc" },
+    take: 80,
+  });
+
+  for (const reservation of guestCandidates) {
     const email = reservation.guestEmail?.trim();
-    if (!email || !shouldPreferDomainSmtpForRecipient(email)) {
-      continue;
+    if (!email || !shouldPreferDomainSmtpForRecipient(email)) continue;
+
+    if (!reservation.guestEmailSentAt && !reservation.validatedAt) {
+      const { subject, text } = buildEmailContent({ reservation, property: reservation.property });
+      jobs.push({ kind: "guest", reservationId: reservation.id, to: email, subject, text });
     }
-    const { subject, text } = buildEmailContent({
-      reservation,
-      property: reservation.property,
-    });
-    jobs.push({
-      kind: "guest",
-      reservationId: reservation.id,
-      to: email,
-      subject,
-      text,
-    });
+
+    const needsFinal =
+      Boolean(reservation.validatedAt) &&
+      (!reservation.guestEmailSentAt ||
+        (reservation.validatedAt !== null && reservation.guestEmailSentAt < reservation.validatedAt));
+
+    if (needsFinal && reservation.validatedAt) {
+      const includeGuide = welcomeWithinTwoDays(reservation.checkIn) && !reservation.welcomeEmailSentAt;
+      const regulamento = loadRegulamentoAttachment();
+      const guide = includeGuide ? loadWelcomeGuideAttachment() : null;
+      const { subject, text } = buildFinalConfirmationEmailContent(
+        { reservation, property: reservation.property },
+        Boolean(regulamento),
+        Boolean(guide)
+      );
+      const attachments = [attachmentPayload(regulamento), attachmentPayload(guide)].filter(
+        (item): item is NonNullable<typeof item> => Boolean(item)
+      );
+      jobs.push({
+        kind: "guest-final",
+        reservationId: reservation.id,
+        to: email,
+        subject,
+        text,
+        attachments: attachments.length ? attachments : undefined,
+      });
+    }
+
+    const finalAlreadySent =
+      Boolean(reservation.validatedAt) &&
+      Boolean(reservation.guestEmailSentAt) &&
+      reservation.validatedAt !== null &&
+      reservation.guestEmailSentAt !== null &&
+      reservation.guestEmailSentAt >= reservation.validatedAt;
+
+    if (
+      finalAlreadySent &&
+      !reservation.welcomeEmailSentAt &&
+      welcomeWithinTwoDays(reservation.checkIn) &&
+      (reservation.status === "CONFIRMED" || reservation.status === "CHECKED_IN")
+    ) {
+      const guide = loadWelcomeGuideAttachment();
+      const regulamento = loadRegulamentoAttachment();
+      const { subject, text } = buildWelcomeGuideEmailContent(
+        { reservation, property: reservation.property },
+        Boolean(guide || regulamento)
+      );
+      const attachments = [attachmentPayload(guide), attachmentPayload(regulamento)].filter(
+        (item): item is NonNullable<typeof item> => Boolean(item)
+      );
+      jobs.push({
+        kind: "guest-welcome",
+        reservationId: reservation.id,
+        to: email,
+        subject,
+        text,
+        attachments: attachments.length ? attachments : undefined,
+      });
+    }
+
+    if (
+      reservation.validatedAt &&
+      !reservation.thankYouEmailSentAt &&
+      reservation.checkOut <= new Date() &&
+      (reservation.status === "CHECKED_OUT" || reservation.status === "CONFIRMED")
+    ) {
+      const { subject, text } = buildThankYouEmailContent({
+        reservation,
+        property: reservation.property,
+      });
+      jobs.push({
+        kind: "guest-thankyou",
+        reservationId: reservation.id,
+        to: email,
+        subject,
+        text,
+      });
+    }
   }
 
   return jobs.slice(0, limit);
@@ -624,28 +713,67 @@ export async function acknowledgeOwnerEmailSent(
   reservationId: string,
   error: string | null = null
 ): Promise<void> {
-  const { prisma } = await import("../lib/prisma.js");
-  await prisma.reservation.update({
-    where: { id: reservationId },
-    data: {
-      ownerEmailSentAt: new Date(),
-      lastEmailError: error,
-    },
-  });
+  await acknowledgeDomainEmailJob(reservationId, "owner", error);
 }
 
 export async function acknowledgeGuestEmailSent(
   reservationId: string,
   error: string | null = null
 ): Promise<void> {
+  await acknowledgeDomainEmailJob(reservationId, "guest", error);
+}
+
+export async function acknowledgeDomainEmailJob(
+  reservationId: string,
+  kind: PendingDomainEmailKind,
+  error: string | null = null
+): Promise<void> {
   const { prisma } = await import("../lib/prisma.js");
-  await prisma.reservation.update({
-    where: { id: reservationId },
-    data: {
-      guestEmailSentAt: new Date(),
-      lastEmailError: error,
-    },
-  });
+  const now = new Date();
+
+  if (kind === "owner") {
+    await prisma.reservation.update({
+      where: { id: reservationId },
+      data: { ownerEmailSentAt: now, lastEmailError: error },
+    });
+    return;
+  }
+
+  if (kind === "guest" || kind === "guest-final") {
+    const reservation = await prisma.reservation.findUnique({ where: { id: reservationId } });
+    const { daysUntilCheckIn } = await import("../lib/dates.js");
+    const includeWelcome =
+      kind === "guest-final" &&
+      reservation &&
+      !reservation.welcomeEmailSentAt &&
+      daysUntilCheckIn(reservation.checkIn) <= 2 &&
+      error === null;
+
+    await prisma.reservation.update({
+      where: { id: reservationId },
+      data: {
+        guestEmailSentAt: now,
+        lastEmailError: error,
+        ...(includeWelcome ? { welcomeEmailSentAt: now } : {}),
+      },
+    });
+    return;
+  }
+
+  if (kind === "guest-welcome") {
+    await prisma.reservation.update({
+      where: { id: reservationId },
+      data: { welcomeEmailSentAt: now, lastEmailError: error },
+    });
+    return;
+  }
+
+  if (kind === "guest-thankyou") {
+    await prisma.reservation.update({
+      where: { id: reservationId },
+      data: { thankYouEmailSentAt: now, lastEmailError: error },
+    });
+  }
 }
 
 function getFromAddress() {
@@ -1176,7 +1304,8 @@ export async function sendReservationFinalConfirmation(
     toName: input.reservation.guestName,
     subject,
     text,
-    html,
+    html: shouldUseTextOnlyGuestEmail(email) ? undefined : html,
+    textOnly: shouldUseTextOnlyGuestEmail(email),
     attachments: attachments.length > 0 ? attachments : undefined,
     tags: ["reserva", "cliente"],
     includeOwnerBcc: false,

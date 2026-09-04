@@ -1,10 +1,7 @@
 #!/usr/bin/env node
 /**
- * Envia emails de gestão pendentes para casa_do_penedo@casadopenedo.pt
- * via SMTP do alojamento (fora do Render free, que bloqueia portas SMTP).
- *
- * Uso:
- *   CASA_API_URL=... CASA_ADMIN_PASSWORD=... DOMAIN_SMTP_PASS=... node send-pending-owner-emails.mjs
+ * Envia emails pendentes (gestão + iCloud/automáticos) via SMTP do alojamento.
+ * O Render free bloqueia portas SMTP — este script corre no Mac.
  */
 import { createTransport } from "nodemailer";
 import { readFileSync, existsSync } from "node:fs";
@@ -61,7 +58,7 @@ const transport = createTransport({
   auth: { user, pass },
   connectionTimeout: 15_000,
   greetingTimeout: 15_000,
-  socketTimeout: 30_000,
+  socketTimeout: 60_000,
   tls: { minVersion: "TLSv1.2" },
 });
 
@@ -105,6 +102,11 @@ for (const job of jobs) {
       replyTo: job.replyToEmail
         ? { name: job.replyToName || undefined, address: job.replyToEmail }
         : undefined,
+      attachments: (job.attachments || []).map((file) => ({
+        filename: file.filename,
+        content: Buffer.from(file.contentBase64, "base64"),
+        contentType: file.contentType,
+      })),
     });
     await api("POST", `/cron/pending-owner-emails/${job.reservationId}/ack`, {
       kind: job.kind || "owner",
@@ -114,7 +116,7 @@ for (const job of jobs) {
   } catch (error) {
     failed += 1;
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`ERR ${job.reservationId}: ${message}`);
+    console.error(`ERR [${job.kind || "?"}] ${job.reservationId}: ${message}`);
   }
 }
 

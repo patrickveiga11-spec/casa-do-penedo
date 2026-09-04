@@ -267,3 +267,9 @@ function isLocalDomainEmailLike(email: string): boolean {
 export function shouldUseTextOnlyGuestEmail(guestEmail: string): boolean {
   return isAppleMailbox(guestEmail) || isMicrosoftMailbox(guestEmail);
 }
+
+/** Motivo típico quando o Render free adia o SMTP do domínio. */
+export function isDomainSmtpDeferredReason(reason?: string | null): boolean {
+  if (!reason) return false;
+  return /adiado|relay|bloqueia portas SMTP|SMTP do domínio/i.test(reason);
+}

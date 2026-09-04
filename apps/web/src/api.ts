@@ -136,6 +136,8 @@ export const api = {
     request<
       Reservation & {
         emailSent?: boolean;
+        emailDeferred?: boolean;
+        emailError?: string;
         welcomeEmailSent?: boolean;
         welcomeEmailNote?: string;
       }

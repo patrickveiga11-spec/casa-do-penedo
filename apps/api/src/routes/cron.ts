@@ -1,8 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { verifyCronRequest } from "../lib/cron-auth.js";
 import {
-  acknowledgeGuestEmailSent,
-  acknowledgeOwnerEmailSent,
+  acknowledgeDomainEmailJob,
   listPendingOwnerEmailJobs,
 } from "../services/email.js";
 import { processScheduledWelcomeEmails } from "../services/welcome-email.js";
@@ -45,8 +44,8 @@ export async function cronRoutes(app: FastifyInstance) {
   });
 
   /**
-   * Pedidos pendentes via SMTP do domínio (gestão + iCloud).
-   * O Render free bloqueia portas 25/465/587 — o relay Mac/GitHub envia.
+   * Pedidos pendentes via SMTP do domínio (gestão + iCloud + automáticos).
+   * O Render free bloqueia portas 25/465/587 — o relay Mac envia.
    */
   app.get("/cron/pending-owner-emails", async (request, reply) => {
     if (!verifyCronSecret(request, reply)) {
@@ -63,12 +62,11 @@ export async function cronRoutes(app: FastifyInstance) {
     }
 
     const { id } = request.params as { id: string };
-    const body = (request.body ?? {}) as { error?: string | null; kind?: "owner" | "guest" };
-    if (body.kind === "guest") {
-      await acknowledgeGuestEmailSent(id, body.error ?? null);
-    } else {
-      await acknowledgeOwnerEmailSent(id, body.error ?? null);
-    }
+    const body = (request.body ?? {}) as {
+      error?: string | null;
+      kind?: "owner" | "guest" | "guest-final" | "guest-welcome" | "guest-thankyou";
+    };
+    await acknowledgeDomainEmailJob(id, body.kind ?? "owner", body.error ?? null);
     return reply.send({ success: true, reservationId: id, kind: body.kind ?? "owner" });
   });
 }

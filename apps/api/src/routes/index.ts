@@ -592,7 +592,11 @@ export async function reservationRoutes(app: FastifyInstance) {
       { includeWelcomeGuide }
     );
 
-    if (!emailResult.sent) {
+    const { isDomainSmtpDeferredReason } = await import("../services/brevo-sender.js");
+    const deferred = !emailResult.sent && isDomainSmtpDeferredReason(emailResult.reason);
+
+    // iCloud/domínio: o Render free não envia SMTP — validar na mesma e entregar via relay.
+    if (!emailResult.sent && !deferred) {
       return reply.status(502).send({
         error: emailResult.reason ?? "Não foi possível enviar o email",
         emailSent: false,
@@ -605,6 +609,10 @@ export async function reservationRoutes(app: FastifyInstance) {
         validatedAt: new Date(),
         status: "CONFIRMED",
         accessCode,
+        // Se o final ficou adiado, mantém guestEmailSentAt antigo (< validatedAt) para o relay.
+        ...(emailResult.sent ? { guestEmailSentAt: new Date(), lastEmailError: null } : {
+          lastEmailError: emailResult.reason ?? "Confirmação final pendente (relay SMTP)",
+        }),
         ...(emailResult.welcomeGuideAttached ? { welcomeEmailSentAt: new Date() } : {}),
       },
       include: { property: true },
@@ -624,7 +632,9 @@ export async function reservationRoutes(app: FastifyInstance) {
 
     return reply.send({
       ...reservation,
-      emailSent: true,
+      emailSent: emailResult.sent,
+      emailDeferred: deferred,
+      emailError: emailResult.sent ? undefined : emailResult.reason,
       welcomeEmailSent,
       welcomeEmailNote,
     });

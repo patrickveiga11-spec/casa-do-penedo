@@ -316,7 +316,12 @@ export default function AdminPage() {
           : result.welcomeEmailSent
             ? " Guia de boas-vindas enviado."
             : "";
-      setDetailNotice(`Reserva validada. Enviámos email de confirmação ao hóspede.${codeNote}${welcomeNote}`);
+      const emailNote = result.emailDeferred
+        ? " Confirmação ao hóspede a enviar em seguida (iCloud/SMTP)."
+        : result.emailSent === false
+          ? ` Atenção email: ${result.emailError ?? "não enviado"}.`
+          : " Enviámos email de confirmação ao hóspede.";
+      setDetailNotice(`Reserva validada.${emailNote}${codeNote}${welcomeNote}`);
       await loadAll(property);
     } catch (err) {
       setDetailError(err instanceof Error ? err.message : "Erro ao validar reserva");
