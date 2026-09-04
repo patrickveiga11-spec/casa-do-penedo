@@ -48,12 +48,11 @@ export function GuestsRegistryPanel() {
   useEffect(() => {
     void loadGuests({ sync: true }).then((data) => {
       if (data.length > 0) {
-        setSyncNotice(
-          `${data.length} hóspede${data.length === 1 ? "" : "s"} na base de dados.`
-        );
+        setSyncNotice(`${data.length} hóspede${data.length === 1 ? "" : "s"} na base de dados.`);
       }
     });
-  }, [loadGuests]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -61,7 +60,8 @@ export function GuestsRegistryPanel() {
     }, 250);
 
     return () => window.clearTimeout(timeout);
-  }, [search, marketingOnly, loadGuests]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, marketingOnly]);
 
   async function handleSync() {
     setSyncing(true);

@@ -1,10 +1,21 @@
 /* Casa do Penedo — service worker mínimo para instalação no telemóvel */
-const CACHE = "casa-do-penedo-v1";
+const CACHE = "casa-do-penedo-v3";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE).then((cache) =>
-      cache.addAll(["/", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/hero-bg.jpg"]).catch(() => undefined)
+      cache
+        .addAll([
+          "/",
+          "/manifest.webmanifest",
+          "/manifest-gestao.webmanifest",
+          "/icon-192.png",
+          "/icon-512.png",
+          "/icon-gestao-192.png",
+          "/icon-gestao-512.png",
+          "/hero-bg.jpg",
+        ])
+        .catch(() => undefined)
     )
   );
   self.skipWaiting();

@@ -176,6 +176,11 @@ button {
   font-size: 0.92rem;
 }
 
+.install-banner-note {
+  margin-top: 8px !important;
+  font-size: 0.85rem !important;
+}
+
 .install-banner-actions {
   display: flex;
   flex-wrap: wrap;

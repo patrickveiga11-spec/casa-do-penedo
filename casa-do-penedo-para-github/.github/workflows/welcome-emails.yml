@@ -1,0 +1,16 @@
+name: Enviar guia de boas-vindas
+
+on:
+  schedule:
+    # 8:00 UTC ≈ 9:00 em Lisboa (horário de verão)
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+jobs:
+  welcome-emails:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar envio na API
+        run: |
+          curl -fsS -X POST "${{ secrets.CASA_API_URL }}/cron/welcome-emails" \
+            -H "Authorization: Bearer ${{ secrets.CASA_ADMIN_PASSWORD }}"

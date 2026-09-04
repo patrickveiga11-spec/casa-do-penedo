@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useLanguage } from "../i18n/LanguageContext";
 
-const DISMISS_KEY = "casa-penedo-install-dismissed";
+/** Só a app pública — independente da gestão já instalada. */
+const DISMISS_KEY = "casa-penedo-install-dismissed-public-v2";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -25,10 +26,11 @@ function isStandalone() {
 export function InstallAppBanner() {
   const { t } = useLanguage();
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
-  const [showIosHint, setShowIosHint] = useState(false);
+  const [manualHint, setManualHint] = useState(false);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    // Se já estás DENTRO da app pública instalada, não pedir de novo.
     if (isStandalone()) {
       return;
     }
@@ -37,21 +39,30 @@ export function InstallAppBanner() {
       return;
     }
 
+    let gotPrompt = false;
+
     function onBeforeInstall(event: Event) {
       event.preventDefault();
+      gotPrompt = true;
       setDeferred(event as BeforeInstallPromptEvent);
+      setManualHint(false);
       setVisible(true);
     }
 
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
 
-    if (isIosSafari()) {
-      setShowIosHint(true);
-      setVisible(true);
-    }
+    // iOS nunca dispara beforeinstallprompt — mostra instrução.
+    // Android também pode não disparar se a gestão já estiver instalada no mesmo domínio.
+    const timer = window.setTimeout(() => {
+      if (!gotPrompt) {
+        setManualHint(true);
+        setVisible(true);
+      }
+    }, 800);
 
     return () => {
       window.removeEventListener("beforeinstallprompt", onBeforeInstall);
+      window.clearTimeout(timer);
     };
   }, []);
 
@@ -59,7 +70,7 @@ export function InstallAppBanner() {
     localStorage.setItem(DISMISS_KEY, "1");
     setVisible(false);
     setDeferred(null);
-    setShowIosHint(false);
+    setManualHint(false);
   }
 
   async function install() {
@@ -81,13 +92,18 @@ export function InstallAppBanner() {
     return null;
   }
 
+  const hint = deferred
+    ? t.installApp.description
+    : isIosSafari()
+      ? t.installApp.iosHint
+      : t.installApp.manualHint;
+
   return (
     <aside className="install-banner" role="region" aria-label={t.installApp.title}>
       <div className="install-banner-copy">
         <strong>{t.installApp.title}</strong>
-        <p>
-          {showIosHint && !deferred ? t.installApp.iosHint : t.installApp.description}
-        </p>
+        <p>{hint}</p>
+        {manualHint && !deferred ? <p className="install-banner-note">{t.installApp.separateNote}</p> : null}
       </div>
       <div className="install-banner-actions">
         {deferred && (

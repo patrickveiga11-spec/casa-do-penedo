@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>EmailAccountDescription</key>
+			<string>Casa do Penedo</string>
+			<key>EmailAccountName</key>
+			<string>Casa do Penedo</string>
+			<key>EmailAccountType</key>
+			<string>EmailTypeIMAP</string>
+			<key>EmailAddress</key>
+			<string>casa_do_penedo@casadopenedo.pt</string>
+			<key>IncomingMailServerAuthentication</key>
+			<string>EmailAuthPassword</string>
+			<key>IncomingMailServerHostName</key>
+			<string>webdomain03.dnscpanel.com</string>
+			<key>IncomingMailServerPortNumber</key>
+			<integer>993</integer>
+			<key>IncomingMailServerUseSSL</key>
+			<true/>
+			<key>IncomingMailServerUsername</key>
+			<string>casa_do_penedo@casadopenedo.pt</string>
+			<key>OutgoingMailServerAuthentication</key>
+			<string>EmailAuthPassword</string>
+			<key>OutgoingMailServerHostName</key>
+			<string>webdomain03.dnscpanel.com</string>
+			<key>OutgoingMailServerPortNumber</key>
+			<integer>587</integer>
+			<key>OutgoingMailServerUseSSL</key>
+			<true/>
+			<key>OutgoingMailServerUsername</key>
+			<string>casa_do_penedo@casadopenedo.pt</string>
+			<key>OutgoingPasswordSameAsIncomingPassword</key>
+			<true/>
+			<key>PayloadDescription</key>
+			<string>Correio Casa do Penedo (IMAP/SMTP)</string>
+			<key>PayloadDisplayName</key>
+			<string>Casa do Penedo</string>
+			<key>PayloadIdentifier</key>
+			<string>pt.casadopenedo.casa-do-penedo.email</string>
+			<key>PayloadType</key>
+			<string>com.apple.mail.managed</string>
+			<key>PayloadUUID</key>
+			<string>8B29EE3D-0818-4440-B40A-7EEC69080359</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Configura casa_do_penedo@casadopenedo.pt com o servidor SSL correcto para o Outlook e Mail no Mac.</string>
+	<key>PayloadDisplayName</key>
+	<string>Casa do Penedo — Email</string>
+	<key>PayloadIdentifier</key>
+	<string>pt.casadopenedo.casa-do-penedo</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>6B74BE46-EE50-46A7-8542-2648BF496BB7</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

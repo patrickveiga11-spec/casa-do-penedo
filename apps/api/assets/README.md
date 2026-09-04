@@ -5,7 +5,7 @@ Coloque aqui os PDFs usados nos emails automáticos:
 | Ficheiro | Quando é enviado |
 |----------|------------------|
 | **`regulamento-interno.pdf`** | Email de confirmação final (ao validar a reserva) |
-| **`guia-boas-vindas.pdf`** | Email de boas-vindas (2 dias antes do check-in, às 9h) |
+| **`guia-boas-vindas.pdf`** + **`regulamento-interno.pdf`** | Email de boas-vindas (2 dias antes do check-in, às 9h) — **dois anexos** |
 
 Variáveis opcionais no Render:
 

@@ -1,0 +1,35 @@
+name: Emails de gestão (casadopenedo.pt)
+
+# O Render free bloqueia SMTP (25/465/587). Este job corre no GitHub,
+# onde o SMTP do alojamento funciona, e entrega em casa_do_penedo@casadopenedo.pt.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  owner-emails:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Instalar dependências da API
+        run: npm install --omit=dev -w @casa/api
+
+      - name: Enviar emails de gestão pendentes
+        working-directory: apps/api
+        env:
+          CASA_API_URL: ${{ secrets.CASA_API_URL }}
+          CASA_ADMIN_PASSWORD: ${{ secrets.CASA_ADMIN_PASSWORD }}
+          DOMAIN_SMTP_HOST: webdomain03.dnscpanel.com
+          DOMAIN_SMTP_PORT: "587"
+          DOMAIN_SMTP_USER: casa_do_penedo@casadopenedo.pt
+          DOMAIN_SMTP_PASS: ${{ secrets.DOMAIN_SMTP_PASS }}
+          SMTP_FROM: Casa do Penedo <casa_do_penedo@casadopenedo.pt>
+        run: node scripts/send-pending-owner-emails.mjs
