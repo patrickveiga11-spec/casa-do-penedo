@@ -159,20 +159,25 @@ function parseEmailList(value: string | undefined): string[] {
 }
 
 const DEFAULT_OWNER_EMAIL = "casa_do_penedo@casadopenedo.pt";
+const LOCAL_MAIL_DOMAIN = "casadopenedo.pt";
 
+function isLocalDomainEmail(email: string): boolean {
+  return email.trim().toLowerCase().endsWith(`@${LOCAL_MAIL_DOMAIN}`);
+}
+
+/**
+ * Destinos de gestão: emails externos (Outlook/Gmail) primeiro.
+ * O servidor de casadopenedo.pt rejeita IPs da Brevo (SpamCop RBL),
+ * por isso o domínio local só é fiável via SMTP do próprio alojamento.
+ */
 function getOwnerNotificationRecipients(): string[] {
   const explicit = parseEmailList(process.env.OWNER_NOTIFICATION_EMAILS?.trim());
-  if (explicit.length > 0) {
-    return explicit;
-  }
-
   const fromEnv = parseEmailList(process.env.OWNER_EMAIL?.trim());
-  if (fromEnv.length > 0) {
-    return fromEnv;
-  }
+  const raw = explicit.length > 0 ? explicit : fromEnv.length > 0 ? fromEnv : [DEFAULT_OWNER_EMAIL];
 
-  // Fallback seguro: caixa oficial da Casa do Penedo
-  return [DEFAULT_OWNER_EMAIL];
+  const external = raw.filter((email) => !isLocalDomainEmail(email));
+  const local = raw.filter((email) => isLocalDomainEmail(email));
+  return [...external, ...local];
 }
 
 function getPrimaryOwnerEmail(): string | undefined {
@@ -689,6 +694,79 @@ function createSmtpTransport() {
   });
 }
 
+/** SMTP do alojamento (cPanel) — entrega local a @casadopenedo.pt sem passar pela Brevo/RBL. */
+function createDomainSmtpTransport() {
+  const host =
+    process.env.DOMAIN_SMTP_HOST?.trim() ||
+    (process.env.SMTP_HOST?.includes("dnscpanel") || process.env.SMTP_HOST?.includes("casadopenedo")
+      ? process.env.SMTP_HOST
+      : "webdomain03.dnscpanel.com");
+  const port = Number(process.env.DOMAIN_SMTP_PORT ?? 587);
+  const user = process.env.DOMAIN_SMTP_USER?.trim() || process.env.SMTP_USER?.trim();
+  const pass = process.env.DOMAIN_SMTP_PASS?.trim() || process.env.SMTP_PASS?.trim();
+
+  if (!user || !pass) {
+    return null;
+  }
+
+  // Só usar se não for o relay da Brevo (esses IPs são rejeitados pelo próprio domínio).
+  if (host.includes("brevo") || host.includes("sendinblue") || host.includes("mailin")) {
+    return null;
+  }
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    requireTLS: port === 587,
+    auth: { user, pass },
+    tls: { minVersion: "TLSv1.2" },
+  });
+}
+
+async function sendViaDomainSmtp(payload: EmailPayload): Promise<EmailSendResult> {
+  const transport = createDomainSmtpTransport();
+  if (!transport) {
+    return {
+      sent: false,
+      reason:
+        "SMTP do domínio em falta (DOMAIN_SMTP_USER/PASS). Necessário para entregar em @casadopenedo.pt",
+    };
+  }
+
+  const from = getFromAddress();
+  const replyTo = payload.replyTo ?? getReplyToAddress();
+
+  try {
+    await transport.sendMail({
+      from,
+      to: payload.to,
+      replyTo: {
+        name: replyTo.name,
+        address: replyTo.email,
+      },
+      subject: payload.subject,
+      text: payload.text,
+      html: payload.textOnly ? undefined : payload.html,
+      headers: {
+        ...buildTransactionalHeaders(),
+        ...(payload.headers ?? {}),
+      },
+      attachments: payload.attachments?.map((file) => ({
+        filename: file.filename,
+        content: file.content,
+        contentType: file.contentType,
+      })),
+    });
+    return { sent: true };
+  } catch (error) {
+    return {
+      sent: false,
+      reason: error instanceof Error ? error.message : "Erro ao enviar via SMTP do domínio",
+    };
+  }
+}
+
 async function sendViaSmtp(payload: EmailPayload): Promise<EmailSendResult> {
   const configError = getEmailConfigError();
   if (configError) {
@@ -743,6 +821,28 @@ async function sendEmail(payload: EmailPayload): Promise<EmailSendResult> {
           ...withIdentity({ subject: payload.subject, text: payload.text, html }),
         };
 
+  // O MX de casadopenedo.pt rejeita IPs da Brevo (SpamCop RBL). Entrega local via SMTP do alojamento.
+  if (isLocalDomainEmail(identified.to)) {
+    const domainResult = await sendViaDomainSmtp(identified);
+    if (domainResult.sent) {
+      console.log(`[email:sent] Domain SMTP → ${identified.to}`);
+      return domainResult;
+    }
+
+    console.warn(
+      `[email:deliverability] Não foi possível entregar em ${identified.to} via SMTP local: ${domainResult.reason}`
+    );
+    console.warn(
+      "[email:deliverability] A saltar Brevo para @casadopenedo.pt (RBL SpamCop). Usa Outlook/Gmail como notificação fiável."
+    );
+    return {
+      sent: false,
+      reason:
+        domainResult.reason ??
+        "casadopenedo.pt rejeita emails da Brevo (RBL). Configura DOMAIN_SMTP_* ou usa Outlook nas notificações.",
+    };
+  }
+
   if (process.env.BREVO_API_KEY?.trim()) {
     const apiResult = await sendViaBrevoApi(identified);
     if (apiResult.sent) {
@@ -751,6 +851,16 @@ async function sendEmail(payload: EmailPayload): Promise<EmailSendResult> {
     }
 
     console.error("[email:error] Brevo API:", apiResult.reason);
+
+    // Fallback SMTP Brevo se a API falhar
+    if (process.env.SMTP_HOST?.includes("brevo") && process.env.SMTP_PASS?.trim()) {
+      const smtpResult = await sendViaSmtp(identified);
+      if (smtpResult.sent) {
+        console.log(`[email:sent] SMTP fallback → ${identified.to}`);
+        return smtpResult;
+      }
+    }
+
     return apiResult;
   }
 
@@ -851,18 +961,25 @@ export async function sendOwnerNewReservationNotification(
     })
   );
 
-  const sentCount = results.filter((item) => item.result.sent).length;
-  if (sentCount === results.length) {
-    return { sent: true };
-  }
-
+  const externalResults = results.filter((item) => !isLocalDomainEmail(item.ownerEmail));
+  const reliable = (externalResults.length > 0 ? externalResults : results).filter(
+    (item) => item.result.sent
+  );
   const failures = results
     .filter((item) => !item.result.sent)
     .map((item) => `${item.ownerEmail}: ${item.result.reason ?? "erro desconhecido"}`);
 
+  // Sucesso = pelo menos um destino fiável (preferência: Outlook/Gmail externos).
+  if (reliable.length > 0) {
+    return {
+      sent: true,
+      reason: failures.length > 0 ? `Parcial — ${failures.join(" | ")}` : undefined,
+    };
+  }
+
   return {
-    sent: sentCount > 0,
-    reason: failures.join(" | "),
+    sent: false,
+    reason: failures.join(" | ") || "Nenhuma notificação de gestão entregue",
   };
 }
 

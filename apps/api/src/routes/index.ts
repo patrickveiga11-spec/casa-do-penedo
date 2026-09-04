@@ -198,12 +198,24 @@ export async function reservationRoutes(app: FastifyInstance) {
       }
     }
 
-    void syncGuestFromReservation(reservation).catch((error) => {
+    const emailErrors = [ownerEmailError, emailError].filter(Boolean).join(" | ") || null;
+
+    const reservationWithEmailStatus = await prisma.reservation.update({
+      where: { id: reservation.id },
+      data: {
+        guestEmailSentAt: emailSent ? new Date() : null,
+        ownerEmailSentAt: ownerEmailSent ? new Date() : null,
+        lastEmailError: emailErrors,
+      },
+      include: { property: true },
+    });
+
+    void syncGuestFromReservation(reservationWithEmailStatus).catch((error) => {
       console.warn("[guest-registry:sync]", error);
     });
 
     return reply.status(201).send({
-      ...reservation,
+      ...reservationWithEmailStatus,
       emailSent,
       emailError,
       ownerEmailSent,
@@ -450,6 +462,14 @@ export async function reservationRoutes(app: FastifyInstance) {
       });
     }
 
+    await prisma.reservation.update({
+      where: { id },
+      data: {
+        guestEmailSentAt: new Date(),
+        lastEmailError: null,
+      },
+    });
+
     return reply.send({ success: true, emailSent: true, type: existing.validatedAt ? "final" : "provisional" });
   });
 
@@ -471,11 +491,23 @@ export async function reservationRoutes(app: FastifyInstance) {
     });
 
     if (!emailResult.sent) {
+      await prisma.reservation.update({
+        where: { id },
+        data: { lastEmailError: emailResult.reason ?? "Falha ao notificar proprietário" },
+      });
       return reply.status(502).send({
         error: emailResult.reason ?? "Não foi possível notificar o proprietário",
         ownerEmailSent: false,
       });
     }
+
+    await prisma.reservation.update({
+      where: { id },
+      data: {
+        ownerEmailSentAt: new Date(),
+        lastEmailError: emailResult.reason ?? null,
+      },
+    });
 
     return reply.send({ success: true, ownerEmailSent: true });
   });

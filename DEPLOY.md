@@ -118,9 +118,16 @@ Isto cria a propriedade «Casa do Penedo» e as regras de preço.
    - `BREVO_API_KEY` = chave da Brevo
    - `SMTP_FROM` = `Casa do Penedo <casa_do_penedo@casadopenedo.pt>`
    - `BREVO_SENDER_EMAIL` = `casa_do_penedo@casadopenedo.pt`
-   - `OWNER_EMAIL` = `casa_do_penedo@casadopenedo.pt`
-7. Testa em https://www.mail-tester.com (deve ficar ≥ 8/10) e em https://mxtoolbox.com/SuperTool.aspx (SPF + DKIM + DMARC).
-8. Reinicia o serviço no Render após alterar as variáveis.
+   - `OWNER_EMAIL` = `casa_do_penedo@outlook.com`
+   - `OWNER_NOTIFICATION_EMAILS` = `casa_do_penedo@outlook.com,casa_do_penedo@casadopenedo.pt`
+7. **Importante — caixa @casadopenedo.pt:** o servidor de email do domínio rejeita IPs da Brevo (SpamCop RBL). Para a gestão receber também nessa caixa, configura SMTP do alojamento no Render:
+   - `DOMAIN_SMTP_HOST` = `webdomain03.dnscpanel.com`
+   - `DOMAIN_SMTP_PORT` = `587`
+   - `DOMAIN_SMTP_USER` = `casa_do_penedo@casadopenedo.pt`
+   - `DOMAIN_SMTP_PASS` = password do email no cPanel  
+   Sem isto, a notificação fiável vai para o **Outlook**.
+8. Testa em https://www.mail-tester.com (deve ficar ≥ 8/10) e em https://mxtoolbox.com/SuperTool.aspx (SPF + DKIM + DMARC).
+9. Reinicia o serviço no Render após alterar as variáveis.
 
 ---
 
