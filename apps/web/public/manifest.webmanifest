@@ -1,15 +1,16 @@
 {
-  "id": "/",
+  "id": "/reservar",
   "name": "Casa do Penedo — Reservar",
   "short_name": "Penedo",
   "description": "Reserva directa na Casa do Penedo",
-  "start_url": "/?source=pwa",
-  "scope": "/",
+  "start_url": "/reservar?source=pwa",
+  "scope": "/reservar",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#2d6a4f",
   "lang": "pt",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-192.png",

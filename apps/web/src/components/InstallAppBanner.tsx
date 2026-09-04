@@ -4,8 +4,8 @@ import { useLanguage } from "../i18n/LanguageContext";
 export type InstallAppVariant = "public" | "gestao";
 
 const DISMISS_KEYS: Record<InstallAppVariant, string> = {
-  public: "casa-penedo-install-dismissed-public-v2",
-  gestao: "casa-penedo-install-dismissed-gestao-v4",
+  public: "casa-penedo-install-dismissed-public-v3",
+  gestao: "casa-penedo-install-dismissed-gestao-v5",
 };
 
 type BeforeInstallPromptEvent = Event & {
@@ -37,6 +37,13 @@ function isStandalone() {
   );
 }
 
+function chromeIntentUrl(path: string) {
+  const host = window.location.host;
+  const httpsUrl = `${window.location.origin}${path}`;
+  const fallback = encodeURIComponent(httpsUrl);
+  return `intent://${host}${path}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${fallback};end`;
+}
+
 export function InstallAppBanner({ variant = "public" }: { variant?: InstallAppVariant }) {
   const { t } = useLanguage();
   const copy = variant === "gestao" ? t.installGestaoApp : t.installApp;
@@ -45,13 +52,13 @@ export function InstallAppBanner({ variant = "public" }: { variant?: InstallAppV
   const [visible, setVisible] = useState(false);
   const [runningStandalone, setRunningStandalone] = useState(false);
   const [android, setAndroid] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const standalone = isStandalone();
     setRunningStandalone(standalone);
     setAndroid(isAndroid());
 
+    // Dentro da app já instalada da mesma variante: não pedir.
     if (standalone && variant === "public") {
       return;
     }
@@ -113,33 +120,31 @@ export function InstallAppBanner({ variant = "public" }: { variant?: InstallAppV
     }
   }
 
-  async function copyLink() {
-    const url = variant === "gestao" ? `${window.location.origin}/gestao` : window.location.origin;
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      window.prompt(copy.copyLink, url);
+  function openInChrome() {
+    const path = variant === "gestao" ? "/gestao" : "/reservar";
+    if (isAndroid()) {
+      window.location.href = chromeIntentUrl(path);
+      return;
     }
+    window.open(`${window.location.origin}${path}`, "_blank", "noopener,noreferrer");
   }
 
   if (!visible) {
     return null;
   }
 
-  const showGestaoSteps = variant === "gestao" && !deferred;
-  const gestao = t.installGestaoApp;
+  // Dentro de outra app (ex.: reservas) não há menu Chrome nem botão Instalar.
+  const needsChrome = runningStandalone && variant === "gestao";
 
   let hint: string = copy.manualHint;
-  if (deferred) {
+  if (needsChrome) {
+    hint = t.installGestaoApp.openChromeHint;
+  } else if (deferred) {
     hint = copy.description;
-  } else if (runningStandalone && variant === "gestao") {
-    hint = gestao.standaloneHint;
-  } else if (android && variant === "gestao") {
-    hint = gestao.androidIntro;
   } else if (isIosSafari()) {
     hint = copy.iosHint;
+  } else if (android && variant === "gestao") {
+    hint = t.installGestaoApp.androidIntro;
   }
 
   return (
@@ -147,27 +152,26 @@ export function InstallAppBanner({ variant = "public" }: { variant?: InstallAppV
       <div className="install-banner-copy">
         <strong>{copy.title}</strong>
         <p>{hint}</p>
-        {showGestaoSteps ? (
+        {variant === "gestao" && !deferred && !needsChrome ? (
           <ol className="install-banner-steps">
-            <li>{gestao.step1}</li>
-            <li>{gestao.step2}</li>
-            <li>{gestao.step3}</li>
+            <li>{t.installGestaoApp.step1}</li>
+            <li>{t.installGestaoApp.step2}</li>
+            <li>{t.installGestaoApp.step3}</li>
           </ol>
         ) : null}
-        {!deferred && variant === "public" ? <p className="install-banner-note">{copy.separateNote}</p> : null}
       </div>
       <div className="install-banner-actions">
-        {deferred ? (
+        {needsChrome ? (
+          <button type="button" className="btn btn-small" onClick={openInChrome}>
+            {t.installGestaoApp.openChrome}
+          </button>
+        ) : deferred ? (
           <button type="button" className="btn btn-small" onClick={install}>
             {copy.install}
           </button>
-        ) : (
-          <button type="button" className="btn btn-small" onClick={copyLink}>
-            {copied ? copy.copied : copy.copyLink}
-          </button>
-        )}
+        ) : null}
         <button type="button" className="btn secondary btn-small" onClick={dismiss}>
-          {deferred ? copy.dismiss : copy.close}
+          {copy.close}
         </button>
       </div>
     </aside>

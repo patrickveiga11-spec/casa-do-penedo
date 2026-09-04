@@ -11,7 +11,8 @@ export default function App() {
       <BrowserRouter>
         <PwaHead />
         <Routes>
-          <Route path="/" element={<BookingPage />} />
+          <Route path="/" element={<Navigate to="/reservar" replace />} />
+          <Route path="/reservar" element={<BookingPage />} />
           <Route
             path="/gestao"
             element={
@@ -20,7 +21,7 @@ export default function App() {
               </AdminGate>
             }
           />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/reservar" replace />} />
         </Routes>
       </BrowserRouter>
     </LanguageProvider>

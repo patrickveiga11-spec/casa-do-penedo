@@ -12,6 +12,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: path.resolve(rootDir, "index.html"),
+        reservar: path.resolve(rootDir, "reservar.html"),
         gestao: path.resolve(rootDir, "gestao.html"),
       },
     },

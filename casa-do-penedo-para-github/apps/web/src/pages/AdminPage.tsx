@@ -516,7 +516,7 @@ export default function AdminPage() {
   return (
     <div className="app-shell">
       <div className="admin-bar">
-        <Link to="/" className="admin-link">
+        <Link to="/reservar" className="admin-link">
           ← Ver página pública
         </Link>
         <button

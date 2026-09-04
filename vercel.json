@@ -6,6 +6,8 @@
   "rewrites": [
     { "source": "/gestao", "destination": "/gestao.html" },
     { "source": "/gestao/(.*)", "destination": "/gestao.html" },
+    { "source": "/reservar", "destination": "/reservar.html" },
+    { "source": "/reservar/(.*)", "destination": "/reservar.html" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "crons": [

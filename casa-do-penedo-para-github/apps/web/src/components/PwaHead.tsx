@@ -24,7 +24,7 @@ function setMeta(name: string, content: string) {
   meta.content = content;
 }
 
-/** Troca manifest/ícones: público (fundo branco) vs gestão (fundo preto). */
+/** Troca manifest/ícones: público (/reservar) vs gestão (/gestao). Scopes separados. */
 export function PwaHead() {
   const { pathname } = useLocation();
   const isGestao = pathname.startsWith("/gestao");
