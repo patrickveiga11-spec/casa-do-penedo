@@ -166,18 +166,26 @@ function isLocalDomainEmail(email: string): boolean {
 }
 
 /**
- * Destinos de gestão: emails externos (Outlook/Gmail) primeiro.
- * O servidor de casadopenedo.pt rejeita IPs da Brevo (SpamCop RBL),
- * por isso o domínio local só é fiável via SMTP do próprio alojamento.
+ * Destino oficial de gestão: sempre casa_do_penedo@casadopenedo.pt.
+ * Entrega via SMTP do alojamento (DOMAIN_SMTP_*) — a Brevo é rejeitada pelo MX (SpamCop RBL).
  */
 function getOwnerNotificationRecipients(): string[] {
   const explicit = parseEmailList(process.env.OWNER_NOTIFICATION_EMAILS?.trim());
   const fromEnv = parseEmailList(process.env.OWNER_EMAIL?.trim());
-  const raw = explicit.length > 0 ? explicit : fromEnv.length > 0 ? fromEnv : [DEFAULT_OWNER_EMAIL];
+  const configured = explicit.length > 0 ? explicit : fromEnv;
 
-  const external = raw.filter((email) => !isLocalDomainEmail(email));
-  const local = raw.filter((email) => isLocalDomainEmail(email));
-  return [...external, ...local];
+  // Preferência absoluta: caixa oficial do domínio.
+  const localOfficial = configured.find((email) => email.toLowerCase() === DEFAULT_OWNER_EMAIL);
+  if (localOfficial) {
+    return [localOfficial];
+  }
+
+  const anyLocal = configured.find((email) => isLocalDomainEmail(email));
+  if (anyLocal) {
+    return [anyLocal];
+  }
+
+  return [DEFAULT_OWNER_EMAIL];
 }
 
 function getPrimaryOwnerEmail(): string | undefined {
@@ -965,16 +973,12 @@ export async function sendOwnerNewReservationNotification(
     })
   );
 
-  const externalResults = results.filter((item) => !isLocalDomainEmail(item.ownerEmail));
-  const reliable = (externalResults.length > 0 ? externalResults : results).filter(
-    (item) => item.result.sent
-  );
+  const sent = results.filter((item) => item.result.sent);
   const failures = results
     .filter((item) => !item.result.sent)
     .map((item) => `${item.ownerEmail}: ${item.result.reason ?? "erro desconhecido"}`);
 
-  // Sucesso = pelo menos um destino fiável (preferência: Outlook/Gmail externos).
-  if (reliable.length > 0) {
+  if (sent.length > 0) {
     return {
       sent: true,
       reason: failures.length > 0 ? `Parcial — ${failures.join(" | ")}` : undefined,
@@ -983,7 +987,9 @@ export async function sendOwnerNewReservationNotification(
 
   return {
     sent: false,
-    reason: failures.join(" | ") || "Nenhuma notificação de gestão entregue",
+    reason:
+      failures.join(" | ") ||
+      "Falha ao notificar casa_do_penedo@casadopenedo.pt — configura DOMAIN_SMTP_USER/PASS no Render",
   };
 }
 

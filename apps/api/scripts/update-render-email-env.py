@@ -13,9 +13,12 @@ SERVICE_ID = os.environ.get("RENDER_SERVICE_ID", "srv-d8eovan40ujc73dqfgb0")
 SERVICE_NAME = os.environ.get("RENDER_SERVICE_NAME", "casa-do-penedo")
 ENV_UPDATES = {
     "SMTP_FROM": "Casa do Penedo <casa_do_penedo@casadopenedo.pt>",
-    "OWNER_EMAIL": "casa_do_penedo@outlook.com",
-    "OWNER_NOTIFICATION_EMAILS": "casa_do_penedo@outlook.com,casa_do_penedo@casadopenedo.pt",
+    "OWNER_EMAIL": "casa_do_penedo@casadopenedo.pt",
+    "OWNER_NOTIFICATION_EMAILS": "casa_do_penedo@casadopenedo.pt",
     "BREVO_SENDER_EMAIL": "casa_do_penedo@casadopenedo.pt",
+    "DOMAIN_SMTP_HOST": "webdomain03.dnscpanel.com",
+    "DOMAIN_SMTP_PORT": "587",
+    "DOMAIN_SMTP_USER": "casa_do_penedo@casadopenedo.pt",
 }
 
 
