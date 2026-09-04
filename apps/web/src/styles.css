@@ -181,6 +181,18 @@ button {
   font-size: 0.85rem !important;
 }
 
+.install-banner-steps {
+  margin: 10px 0 0;
+  padding-left: 1.2rem;
+  color: #1e3a8a;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.install-banner-steps li + li {
+  margin-top: 6px;
+}
+
 .install-banner-actions {
   display: flex;
   flex-wrap: wrap;

@@ -5,7 +5,7 @@ export type InstallAppVariant = "public" | "gestao";
 
 const DISMISS_KEYS: Record<InstallAppVariant, string> = {
   public: "casa-penedo-install-dismissed-public-v2",
-  gestao: "casa-penedo-install-dismissed-gestao-v3",
+  gestao: "casa-penedo-install-dismissed-gestao-v4",
 };
 
 type BeforeInstallPromptEvent = Event & {
@@ -45,6 +45,7 @@ export function InstallAppBanner({ variant = "public" }: { variant?: InstallAppV
   const [visible, setVisible] = useState(false);
   const [runningStandalone, setRunningStandalone] = useState(false);
   const [android, setAndroid] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const standalone = isStandalone();
@@ -112,17 +113,31 @@ export function InstallAppBanner({ variant = "public" }: { variant?: InstallAppV
     }
   }
 
+  async function copyLink() {
+    const url = variant === "gestao" ? `${window.location.origin}/gestao` : window.location.origin;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.prompt(copy.copyLink, url);
+    }
+  }
+
   if (!visible) {
     return null;
   }
+
+  const showGestaoSteps = variant === "gestao" && !deferred;
+  const gestao = t.installGestaoApp;
 
   let hint: string = copy.manualHint;
   if (deferred) {
     hint = copy.description;
   } else if (runningStandalone && variant === "gestao") {
-    hint = t.installGestaoApp.standaloneHint;
+    hint = gestao.standaloneHint;
   } else if (android && variant === "gestao") {
-    hint = t.installGestaoApp.androidHint;
+    hint = gestao.androidIntro;
   } else if (isIosSafari()) {
     hint = copy.iosHint;
   }
@@ -132,16 +147,27 @@ export function InstallAppBanner({ variant = "public" }: { variant?: InstallAppV
       <div className="install-banner-copy">
         <strong>{copy.title}</strong>
         <p>{hint}</p>
-        {!deferred ? <p className="install-banner-note">{copy.separateNote}</p> : null}
+        {showGestaoSteps ? (
+          <ol className="install-banner-steps">
+            <li>{gestao.step1}</li>
+            <li>{gestao.step2}</li>
+            <li>{gestao.step3}</li>
+          </ol>
+        ) : null}
+        {!deferred && variant === "public" ? <p className="install-banner-note">{copy.separateNote}</p> : null}
       </div>
       <div className="install-banner-actions">
         {deferred ? (
           <button type="button" className="btn btn-small" onClick={install}>
             {copy.install}
           </button>
-        ) : null}
+        ) : (
+          <button type="button" className="btn btn-small" onClick={copyLink}>
+            {copied ? copy.copied : copy.copyLink}
+          </button>
+        )}
         <button type="button" className="btn secondary btn-small" onClick={dismiss}>
-          {copy.dismiss}
+          {deferred ? copy.dismiss : copy.close}
         </button>
       </div>
     </aside>
