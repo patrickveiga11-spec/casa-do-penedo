@@ -3,7 +3,11 @@
   "outputDirectory": "apps/web/dist",
   "installCommand": "npm install",
   "framework": "vite",
-  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }],
+  "rewrites": [
+    { "source": "/gestao", "destination": "/gestao.html" },
+    { "source": "/gestao/(.*)", "destination": "/gestao.html" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
   "crons": [
     {
       "path": "/api/welcome-emails",

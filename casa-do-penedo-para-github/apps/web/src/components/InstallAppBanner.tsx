@@ -5,12 +5,18 @@ export type InstallAppVariant = "public" | "gestao";
 
 const DISMISS_KEYS: Record<InstallAppVariant, string> = {
   public: "casa-penedo-install-dismissed-public-v2",
-  gestao: "casa-penedo-install-dismissed-gestao-v2",
+  gestao: "casa-penedo-install-dismissed-gestao-v3",
 };
 
-interface BeforeInstallPromptEvent extends Event {
+type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+};
+
+declare global {
+  interface Window {
+    __casaBeforeInstall?: BeforeInstallPromptEvent | null;
+  }
 }
 
 function isIosSafari() {
@@ -18,6 +24,10 @@ function isIosSafari() {
   const isIos = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|Chrome/.test(ua);
   return isIos && isSafari;
+}
+
+function isAndroid() {
+  return /Android/i.test(window.navigator.userAgent);
 }
 
 function isStandalone() {
@@ -32,16 +42,15 @@ export function InstallAppBanner({ variant = "public" }: { variant?: InstallAppV
   const copy = variant === "gestao" ? t.installGestaoApp : t.installApp;
   const dismissKey = DISMISS_KEYS[variant];
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
-  const [manualHint, setManualHint] = useState(false);
   const [visible, setVisible] = useState(false);
   const [runningStandalone, setRunningStandalone] = useState(false);
+  const [android, setAndroid] = useState(false);
 
   useEffect(() => {
     const standalone = isStandalone();
     setRunningStandalone(standalone);
+    setAndroid(isAndroid());
 
-    // App pública já instalada: não pedir de novo.
-    // Gestão: continua a mostrar (ícone antigo / scope errado é o caso comum).
     if (standalone && variant === "public") {
       return;
     }
@@ -50,32 +59,34 @@ export function InstallAppBanner({ variant = "public" }: { variant?: InstallAppV
       return;
     }
 
-    let gotPrompt = false;
+    setVisible(true);
+
+    function takePrompt(event?: BeforeInstallPromptEvent | null) {
+      const promptEvent = event ?? window.__casaBeforeInstall ?? null;
+      if (!promptEvent) {
+        return;
+      }
+      setDeferred(promptEvent);
+    }
 
     function onBeforeInstall(event: Event) {
       event.preventDefault();
-      gotPrompt = true;
-      setDeferred(event as BeforeInstallPromptEvent);
-      setManualHint(false);
-      setVisible(true);
+      const bip = event as BeforeInstallPromptEvent;
+      window.__casaBeforeInstall = bip;
+      takePrompt(bip);
     }
 
+    function onCasaBip() {
+      takePrompt();
+    }
+
+    takePrompt();
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
-
-    // Mostrar logo — não depender só do evento do browser.
-    setManualHint(true);
-    setVisible(true);
-
-    const timer = window.setTimeout(() => {
-      if (!gotPrompt) {
-        setManualHint(true);
-        setVisible(true);
-      }
-    }, 300);
+    window.addEventListener("casa-beforeinstallprompt", onCasaBip);
 
     return () => {
       window.removeEventListener("beforeinstallprompt", onBeforeInstall);
-      window.clearTimeout(timer);
+      window.removeEventListener("casa-beforeinstallprompt", onCasaBip);
     };
   }, [dismissKey, variant]);
 
@@ -83,21 +94,21 @@ export function InstallAppBanner({ variant = "public" }: { variant?: InstallAppV
     localStorage.setItem(dismissKey, "1");
     setVisible(false);
     setDeferred(null);
-    setManualHint(false);
   }
 
   async function install() {
-    if (!deferred) {
+    const promptEvent = deferred ?? window.__casaBeforeInstall;
+    if (!promptEvent) {
       return;
     }
 
-    await deferred.prompt();
-    const choice = await deferred.userChoice;
+    await promptEvent.prompt();
+    const choice = await promptEvent.userChoice;
+    window.__casaBeforeInstall = null;
     setDeferred(null);
     if (choice.outcome === "accepted") {
       setVisible(false);
-    } else {
-      dismiss();
+      localStorage.setItem(dismissKey, "1");
     }
   }
 
@@ -105,27 +116,30 @@ export function InstallAppBanner({ variant = "public" }: { variant?: InstallAppV
     return null;
   }
 
-  const hint = deferred
-    ? copy.description
-    : runningStandalone && variant === "gestao"
-      ? t.installGestaoApp.standaloneHint
-      : isIosSafari()
-        ? copy.iosHint
-        : copy.manualHint;
+  let hint: string = copy.manualHint;
+  if (deferred) {
+    hint = copy.description;
+  } else if (runningStandalone && variant === "gestao") {
+    hint = t.installGestaoApp.standaloneHint;
+  } else if (android && variant === "gestao") {
+    hint = t.installGestaoApp.androidHint;
+  } else if (isIosSafari()) {
+    hint = copy.iosHint;
+  }
 
   return (
     <aside className={`install-banner${variant === "gestao" ? " install-banner-gestao" : ""}`} role="region" aria-label={copy.title}>
       <div className="install-banner-copy">
         <strong>{copy.title}</strong>
         <p>{hint}</p>
-        {manualHint && !deferred ? <p className="install-banner-note">{copy.separateNote}</p> : null}
+        {!deferred ? <p className="install-banner-note">{copy.separateNote}</p> : null}
       </div>
       <div className="install-banner-actions">
-        {deferred && (
+        {deferred ? (
           <button type="button" className="btn btn-small" onClick={install}>
             {copy.install}
           </button>
-        )}
+        ) : null}
         <button type="button" className="btn secondary btn-small" onClick={dismiss}>
           {copy.dismiss}
         </button>

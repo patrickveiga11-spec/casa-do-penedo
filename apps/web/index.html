@@ -10,9 +10,24 @@
     <meta name="apple-mobile-web-app-title" content="Penedo" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>Casa do Penedo — Reservar</title>
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" type="image/png" href="/icon-192.png" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="manifest" href="/manifest.webmanifest" id="app-manifest" />
+    <link rel="icon" type="image/png" href="/icon-192.png" id="app-icon" />
+    <link rel="apple-touch-icon" href="/icon-192.png" id="app-apple-icon" />
+    <script>
+      // Chrome Android lê o manifest cedo — ajustar antes do React se a URL for /gestao.
+      (function () {
+        if (location.pathname.indexOf("/gestao") !== 0) return;
+        var m = document.getElementById("app-manifest");
+        var i = document.getElementById("app-icon");
+        var a = document.getElementById("app-apple-icon");
+        if (m) m.setAttribute("href", "/manifest-gestao.webmanifest");
+        if (i) i.setAttribute("href", "/icon-gestao-192.png");
+        if (a) a.setAttribute("href", "/icon-gestao-192.png");
+        document.title = "Casa do Penedo — Gestão";
+        var theme = document.querySelector('meta[name="theme-color"]');
+        if (theme) theme.setAttribute("content", "#1a1a1a");
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

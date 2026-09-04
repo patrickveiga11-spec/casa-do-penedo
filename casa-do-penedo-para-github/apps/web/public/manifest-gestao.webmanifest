@@ -3,13 +3,15 @@
   "name": "Casa do Penedo — Gestão",
   "short_name": "Penedo Gestão",
   "description": "Gestão de reservas da Casa do Penedo",
-  "start_url": "/gestao?source=pwa",
+  "start_url": "/gestao?source=pwa-gestao",
   "scope": "/gestao",
   "display": "standalone",
+  "display_override": ["standalone", "browser"],
   "orientation": "portrait-primary",
   "background_color": "#000000",
   "theme_color": "#1a1a1a",
   "lang": "pt",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-gestao-192.png",
