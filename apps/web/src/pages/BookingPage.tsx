@@ -12,6 +12,8 @@ import { useLanguage } from "../i18n/LanguageContext";
 import { interpolate } from "../i18n/translations";
 import { formatDate, formatMoney, monthRange, dateKeyFromIso, parseDateKey } from "../lib/format";
 
+type PublicSection = "disponibilidades" | "reservar" | "tarifas" | "info";
+
 interface Confirmation {
   guestName: string;
   guestEmail: string;
@@ -32,6 +34,7 @@ export default function BookingPage() {
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [section, setSection] = useState<PublicSection>("disponibilidades");
   const [form, setForm] = useState({
     guestName: "",
     guestEmail: "",
@@ -46,6 +49,12 @@ export default function BookingPage() {
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
 
   const range = monthRange(calendarMonth, intlLocale);
+  const sectionButtons: { id: PublicSection; label: string }[] = [
+    { id: "disponibilidades", label: t.sections.disponibilidades },
+    { id: "reservar", label: t.sections.reservar },
+    { id: "tarifas", label: t.sections.tarifas },
+    { id: "info", label: t.sections.info },
+  ];
 
   async function loadCalendar(selectedProperty: Property) {
     const [calendar, ruleData] = await Promise.all([
@@ -239,7 +248,14 @@ export default function BookingPage() {
               <p className="muted-text">{t.emailFailed}</p>
             )}
             <p className="muted-text">{t.finalConfirmationNote}</p>
-            <button type="button" className="btn" onClick={() => setConfirmation(null)}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                setConfirmation(null);
+                setSection("reservar");
+              }}
+            >
               {t.newBooking}
             </button>
           </section>
@@ -255,9 +271,23 @@ export default function BookingPage() {
         <LogoHeader subtitle={t.subtitle} />
         <InstallAppBanner />
 
-        <div className="layout">
+        <nav className="public-section-nav" aria-label={t.subtitle}>
+          {sectionButtons.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`public-section-btn${section === item.id ? " active" : ""}`}
+              aria-pressed={section === item.id}
+              onClick={() => setSection(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+
+        {section === "disponibilidades" ? (
           <section className="panel">
-            <h2>{t.availability}</h2>
+            <h2>{t.sections.disponibilidades}</h2>
             <CalendarView
               reservations={reservations}
               blocks={blocks}
@@ -278,95 +308,99 @@ export default function BookingPage() {
               }
             />
           </section>
+        ) : null}
 
-          <section className="stack">
-            <div className="panel">
-              <h2>{t.book}</h2>
-              <form className="stack" onSubmit={handleSubmit}>
-                <div className="field">
-                  <label htmlFor="guestName">{t.fullName}</label>
-                  <input
-                    id="guestName"
-                    value={form.guestName}
-                    onChange={(event) => setForm({ ...form, guestName: event.target.value })}
-                    required
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="guestEmail">{t.email}</label>
-                  <input
-                    id="guestEmail"
-                    type="email"
-                    value={form.guestEmail}
-                    onChange={(event) => setForm({ ...form, guestEmail: event.target.value })}
-                    required
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="guestPhone">{t.phone}</label>
-                  <input
-                    id="guestPhone"
-                    type="tel"
-                    value={form.guestPhone}
-                    onChange={(event) => setForm({ ...form, guestPhone: event.target.value })}
-                    placeholder={t.phonePlaceholder}
-                    required
-                    minLength={4}
-                  />
-                </div>
-                <div className="field-row">
-                  <DateField
-                    id="checkIn"
-                    label={t.checkIn}
-                    value={form.checkIn}
-                    onChange={(checkIn) => setForm({ ...form, checkIn })}
-                    openCalendarLabel={t.openCalendar}
-                    chooseDateLabel={t.chooseDate}
-                    required
-                  />
-                  <DateField
-                    id="checkOut"
-                    label={t.checkOut}
-                    value={form.checkOut}
-                    onChange={(checkOut) => setForm({ ...form, checkOut })}
-                    openCalendarLabel={t.openCalendar}
-                    chooseDateLabel={t.chooseDate}
-                    required
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="guests">{t.guests}</label>
-                  <input
-                    id="guests"
-                    type="number"
-                    min={1}
-                    max={property.maxGuests}
-                    value={form.guests}
-                    onChange={(event) => setForm({ ...form, guests: Number(event.target.value) })}
-                  />
-                </div>
+        {section === "reservar" ? (
+          <section className="panel">
+            <h2>{t.sections.reservar}</h2>
+            <form className="stack" onSubmit={handleSubmit}>
+              <div className="field">
+                <label htmlFor="guestName">{t.fullName}</label>
+                <input
+                  id="guestName"
+                  value={form.guestName}
+                  onChange={(event) => setForm({ ...form, guestName: event.target.value })}
+                  required
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="guestEmail">{t.email}</label>
+                <input
+                  id="guestEmail"
+                  type="email"
+                  value={form.guestEmail}
+                  onChange={(event) => setForm({ ...form, guestEmail: event.target.value })}
+                  required
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="guestPhone">{t.phone}</label>
+                <input
+                  id="guestPhone"
+                  type="tel"
+                  value={form.guestPhone}
+                  onChange={(event) => setForm({ ...form, guestPhone: event.target.value })}
+                  placeholder={t.phonePlaceholder}
+                  required
+                  minLength={4}
+                />
+              </div>
+              <div className="field-row">
+                <DateField
+                  id="checkIn"
+                  label={t.checkIn}
+                  value={form.checkIn}
+                  onChange={(checkIn) => setForm({ ...form, checkIn })}
+                  openCalendarLabel={t.openCalendar}
+                  chooseDateLabel={t.chooseDate}
+                  required
+                />
+                <DateField
+                  id="checkOut"
+                  label={t.checkOut}
+                  value={form.checkOut}
+                  onChange={(checkOut) => setForm({ ...form, checkOut })}
+                  openCalendarLabel={t.openCalendar}
+                  chooseDateLabel={t.chooseDate}
+                  required
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="guests">{t.guests}</label>
+                <input
+                  id="guests"
+                  type="number"
+                  min={1}
+                  max={property.maxGuests}
+                  value={form.guests}
+                  onChange={(event) => setForm({ ...form, guests: Number(event.target.value) })}
+                />
+              </div>
 
-                {quoteTotal !== null && (
-                  <div className="quote-box">
-                    {t.estimatedTotal}
-                    <strong>{formatMoney(quoteTotal, property.currency, intlLocale)}</strong>
-                  </div>
-                )}
+              {quoteTotal !== null && (
+                <div className="quote-box">
+                  {t.estimatedTotal}
+                  <strong>{formatMoney(quoteTotal, property.currency, intlLocale)}</strong>
+                </div>
+              )}
 
-                {formError && <div className="alert">{formError}</div>}
+              {formError && <div className="alert">{formError}</div>}
 
-                <button className="btn btn-large" type="submit" disabled={submitting}>
-                  {submitting ? t.submitting : t.confirmBooking}
-                </button>
-              </form>
-            </div>
-
-            <PricingInfo rules={pricingRules} publicPage />
+              <button className="btn btn-large" type="submit" disabled={submitting}>
+                {submitting ? t.submitting : t.confirmBooking}
+              </button>
+            </form>
           </section>
-        </div>
+        ) : null}
 
-        <WelcomeGuideCard />
-        <RegulationsFooter />
+        {section === "tarifas" ? <PricingInfo rules={pricingRules} publicPage /> : null}
+
+        {section === "info" ? (
+          <section className="public-info-stack">
+            <WelcomeGuideCard />
+            <RegulationsFooter />
+          </section>
+        ) : null}
       </div>
     </div>
   );
