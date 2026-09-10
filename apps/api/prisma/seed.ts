@@ -5,12 +5,12 @@ const prisma = new PrismaClient();
 async function main() {
   const property = await prisma.property.upsert({
     where: { slug: "casa-do-penedo" },
-    update: { basePrice: 100, maxGuests: 10 },
+    update: { basePrice: 150, maxGuests: 10 },
     create: {
       name: "Casa do Penedo",
       slug: "casa-do-penedo",
       address: "Fafe, Braga, Portugal",
-      basePrice: 100,
+      basePrice: 150,
       currency: "EUR",
       maxGuests: 10,
     },
@@ -22,18 +22,18 @@ async function main() {
     data: [
       {
         propertyId: property.id,
-        name: "Estadia de 1 noite (200€)",
+        name: "Estadia de 1 noite (225€)",
         priority: 10,
         minNights: 1,
-        modifier: 200,
+        modifier: 225,
         modifierType: "PACKAGE",
       },
       {
         propertyId: property.id,
-        name: "Estadia de 2 noites (250€)",
+        name: "Estadia de 2 noites (325€)",
         priority: 9,
         minNights: 2,
-        modifier: 250,
+        modifier: 325,
         modifierType: "PACKAGE",
       },
       {

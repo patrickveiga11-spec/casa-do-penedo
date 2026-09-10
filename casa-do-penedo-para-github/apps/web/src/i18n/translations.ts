@@ -68,7 +68,7 @@ export const translations = {
     pricing: {
       title: "Tarifas",
       nightly: "Diária",
-      nightlyDetail: "Lotação 7 pessoas",
+      nightlyDetail: "Lotação 6+1",
       singleNight: "Estadia de 1 noite",
       singleNightDetail: "Qualquer dia da semana",
       packageNights: "Pacote de {n} noites",
@@ -174,7 +174,7 @@ export const translations = {
     pricing: {
       title: "Rates",
       nightly: "Nightly rate",
-      nightlyDetail: "Up to 7 guests",
+      nightlyDetail: "Occupancy 6+1",
       singleNight: "1-night stay",
       singleNightDetail: "Any day of the week",
       packageNights: "Package of {n} nights",
@@ -280,7 +280,7 @@ export const translations = {
     pricing: {
       title: "Tarifs",
       nightly: "Nuitée",
-      nightlyDetail: "Jusqu'à 7 personnes",
+      nightlyDetail: "Capacité 6+1",
       singleNight: "Séjour d'1 nuit",
       singleNightDetail: "N'importe quel jour de la semaine",
       packageNights: "Forfait {n} nuits",
@@ -386,7 +386,7 @@ export const translations = {
     pricing: {
       title: "Tarifas",
       nightly: "Noche",
-      nightlyDetail: "Hasta 7 personas",
+      nightlyDetail: "Ocupación 6+1",
       singleNight: "Estancia de 1 noche",
       singleNightDetail: "Cualquier día de la semana",
       packageNights: "Paquete de {n} noches",

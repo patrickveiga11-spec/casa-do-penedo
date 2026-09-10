@@ -31,8 +31,8 @@ function rule(
 }
 
 const rules: PricingRule[] = [
-  rule({ id: "pkg1", name: "1n", priority: 10, minNights: 1, modifier: 200, modifierType: "PACKAGE" }),
-  rule({ id: "pkg2", name: "2n", priority: 9, minNights: 2, modifier: 250, modifierType: "PACKAGE" }),
+  rule({ id: "pkg1", name: "1n", priority: 10, minNights: 1, modifier: 225, modifierType: "PACKAGE" }),
+  rule({ id: "pkg2", name: "2n", priority: 9, minNights: 2, modifier: 325, modifierType: "PACKAGE" }),
   rule({
     id: "long",
     name: "long",
@@ -99,22 +99,22 @@ const rules: PricingRule[] = [
 ];
 
 function quote(checkIn: string, checkOut: string, guests = 2) {
-  return calculateDynamicPrice(100, "EUR", toDateOnly(checkIn), toDateOnly(checkOut), rules, guests);
+  return calculateDynamicPrice(150, "EUR", toDateOnly(checkIn), toDateOnly(checkOut), rules, guests);
 }
 
 const cases: Array<{ label: string; checkIn: string; checkOut: string; expected: number }> = [
-  { label: "nov 2026 · 1 noite", checkIn: "2026-11-10", checkOut: "2026-11-11", expected: 200 },
-  { label: "nov 2026 · 2 noites", checkIn: "2026-11-10", checkOut: "2026-11-12", expected: 250 },
-  { label: "nov 2026 · 3 noites", checkIn: "2026-11-10", checkOut: "2026-11-13", expected: 300 },
-  { label: "nov 2026 · 7 noites (-10%)", checkIn: "2026-11-01", checkOut: "2026-11-08", expected: 630 },
-  { label: "ago 2026 · 3 noites", checkIn: "2026-08-10", checkOut: "2026-08-13", expected: 300 },
-  { label: "mai 2027 · 3 noites", checkIn: "2027-05-10", checkOut: "2027-05-13", expected: 300 },
+  { label: "nov 2026 · 1 noite", checkIn: "2026-11-10", checkOut: "2026-11-11", expected: 225 },
+  { label: "nov 2026 · 2 noites", checkIn: "2026-11-10", checkOut: "2026-11-12", expected: 325 },
+  { label: "nov 2026 · 3 noites", checkIn: "2026-11-10", checkOut: "2026-11-13", expected: 450 },
+  { label: "nov 2026 · 7 noites (-10%)", checkIn: "2026-11-01", checkOut: "2026-11-08", expected: 945 },
+  { label: "ago 2026 · 3 noites", checkIn: "2026-08-10", checkOut: "2026-08-13", expected: 450 },
+  { label: "mai 2027 · 3 noites", checkIn: "2027-05-10", checkOut: "2027-05-13", expected: 450 },
   { label: "jul 2027 · 1 noite", checkIn: "2027-07-10", checkOut: "2027-07-11", expected: 200 },
   { label: "jul 2027 · 2 noites", checkIn: "2027-07-10", checkOut: "2027-07-12", expected: 350 },
   { label: "jul 2027 · 3 noites", checkIn: "2027-07-10", checkOut: "2027-07-13", expected: 450 },
   { label: "jul 2027 · 4 noites", checkIn: "2027-07-10", checkOut: "2027-07-14", expected: 600 },
   { label: "jul 2027 · 6 noites (-10%)", checkIn: "2027-07-10", checkOut: "2027-07-16", expected: 810 },
-  { label: "nov 2027 · 3 noites", checkIn: "2027-11-10", checkOut: "2027-11-13", expected: 300 },
+  { label: "nov 2027 · 3 noites", checkIn: "2027-11-10", checkOut: "2027-11-13", expected: 450 },
 ];
 
 let failed = 0;

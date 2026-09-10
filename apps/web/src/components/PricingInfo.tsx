@@ -108,10 +108,10 @@ export function PricingInfo({
           <div>
             <strong>{publicPage ? p!.nightly : "Diária"}</strong>
             <div className="muted-text">
-              {publicPage ? p!.nightlyDetail : "Até 7 hóspedes · máximo 10"}
+              {publicPage ? p!.nightlyDetail : "Lotação 6+1 · máximo 10"}
             </div>
           </div>
-          <span className="badge">100€/noite</span>
+          <span className="badge">150€/noite</span>
         </div>
 
         {visibleRules.map((rule) => {
