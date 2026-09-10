@@ -1,6 +1,5 @@
 import type { PricingRule } from "@prisma/client";
 import { eachNight, formatDate } from "../lib/dates.js";
-import { calculateSummer2027Price, isSummer2027Rule } from "./seasonal-pricing.js";
 
 export const INCLUDED_GUESTS = 7;
 export const EXTRA_GUEST_FEE = 15;
@@ -129,18 +128,7 @@ export function calculateDynamicPrice(
   const guestSurcharge = extraGuestFee(guests);
   const sortedRules = [...rules].sort((a, b) => b.priority - a.priority);
 
-  const summerPrice = calculateSummer2027Price(nights, sortedRules, currency, guests);
-  if (summerPrice) {
-    if (summerPrice.subtotal <= 0) {
-      throw new Error("Cálculo de época alta devolveu valor inválido");
-    }
-    return summerPrice;
-  }
-
-  // Regras sazonais 2027 só entram pelo ramo acima — nunca no cálculo normal.
-  const standardRules = sortedRules.filter((rule) => !isSummer2027Rule(rule));
-
-  const packageRule = findPackageRule(standardRules, nightCount, nights[0]);
+  const packageRule = findPackageRule(sortedRules, nightCount, nights[0]);
   if (packageRule) {
     const packaged = buildPackageBreakdown(nights, packageRule, guestSurcharge, currency, guests);
     if (packaged.subtotal <= 0) {
@@ -157,7 +145,7 @@ export function calculateDynamicPrice(
       appliedRules.push(`+${guestSurcharge}€ hóspedes extra`);
     }
 
-    for (const rule of standardRules) {
+    for (const rule of sortedRules) {
       if (ruleApplies(rule, date, nightCount)) {
         adjustedPrice = applyModifier(adjustedPrice, rule);
         appliedRules.push(rule.name);
