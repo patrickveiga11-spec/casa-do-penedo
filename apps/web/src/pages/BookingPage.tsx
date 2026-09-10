@@ -11,6 +11,7 @@ import { WelcomeGuideCard } from "../components/WelcomeGuideCard";
 import { useLanguage } from "../i18n/LanguageContext";
 import { interpolate } from "../i18n/translations";
 import { formatDate, formatMoney, monthRange, dateKeyFromIso, parseDateKey } from "../lib/format";
+import { resolveGuestCounts } from "../lib/guest-counts";
 
 type PublicSection = "disponibilidades" | "reservar" | "tarifas" | "info";
 
@@ -20,6 +21,9 @@ interface Confirmation {
   checkIn: string;
   checkOut: string;
   guests: number;
+  guestsChildren: number;
+  guestsYouth: number;
+  guestsAdults: number;
   totalPrice: string;
   currency: string;
   emailSent: boolean;
@@ -41,7 +45,9 @@ export default function BookingPage() {
     guestPhone: "",
     checkIn: "",
     checkOut: "",
-    guests: 2,
+    guestsChildren: 0,
+    guestsYouth: 0,
+    guestsAdults: 2,
   });
   const [quoteTotal, setQuoteTotal] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -104,12 +110,20 @@ export default function BookingPage() {
       return;
     }
 
+    const guestCounts = resolveGuestCounts(form);
+    if (guestCounts.guests < 1) {
+      setQuoteTotal(null);
+      return;
+    }
+
     api
       .getQuote({
         propertyId: property.id,
         checkIn: form.checkIn,
         checkOut: form.checkOut,
-        guests: form.guests,
+        guestsChildren: guestCounts.guestsChildren,
+        guestsYouth: guestCounts.guestsYouth,
+        guestsAdults: guestCounts.guestsAdults,
       })
       .then((quote) => {
         if (!quote.subtotal || quote.subtotal <= 0) {
@@ -124,7 +138,15 @@ export default function BookingPage() {
         setQuoteTotal(null);
         setFormError(err instanceof Error ? err.message : t.bookingFailed);
       });
-  }, [form.checkIn, form.checkOut, form.guests, property?.id, t]);
+  }, [
+    form.checkIn,
+    form.checkOut,
+    form.guestsChildren,
+    form.guestsYouth,
+    form.guestsAdults,
+    property?.id,
+    t,
+  ]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -140,12 +162,21 @@ export default function BookingPage() {
       return;
     }
 
+    const guestCounts = resolveGuestCounts(form);
+    if (guestCounts.guests < 1) {
+      setFormError(t.guestsAtLeastOne);
+      setSubmitting(false);
+      return;
+    }
+
     try {
       const availability = await api.checkAvailability({
         propertyId: property.id,
         checkIn: form.checkIn,
         checkOut: form.checkOut,
-        guests: form.guests,
+        guestsChildren: guestCounts.guestsChildren,
+        guestsYouth: guestCounts.guestsYouth,
+        guestsAdults: guestCounts.guestsAdults,
       });
 
       if (!availability.available) {
@@ -160,7 +191,9 @@ export default function BookingPage() {
         guestPhone: phone,
         checkIn: form.checkIn,
         checkOut: form.checkOut,
-        guests: form.guests,
+        guestsChildren: guestCounts.guestsChildren,
+        guestsYouth: guestCounts.guestsYouth,
+        guestsAdults: guestCounts.guestsAdults,
       });
 
       setConfirmation({
@@ -169,6 +202,9 @@ export default function BookingPage() {
         checkIn: reservation.checkIn,
         checkOut: reservation.checkOut,
         guests: reservation.guests,
+        guestsChildren: reservation.guestsChildren ?? guestCounts.guestsChildren,
+        guestsYouth: reservation.guestsYouth ?? guestCounts.guestsYouth,
+        guestsAdults: reservation.guestsAdults ?? guestCounts.guestsAdults,
         totalPrice: reservation.totalPrice,
         currency: reservation.currency,
         emailSent: reservation.emailSent ?? false,
@@ -181,7 +217,9 @@ export default function BookingPage() {
         guestPhone: "",
         checkIn: "",
         checkOut: "",
-        guests: 2,
+        guestsChildren: 0,
+        guestsYouth: 0,
+        guestsAdults: 2,
       });
       await loadCalendar(property);
     } catch (err) {
@@ -233,7 +271,21 @@ export default function BookingPage() {
               </div>
               <div>
                 <span className="muted-text">{t.guests}</span>
-                <strong>{confirmation.guests}</strong>
+                <strong>
+                  {[
+                    confirmation.guestsAdults > 0
+                      ? `${confirmation.guestsAdults} ${t.guestsAdults}`
+                      : null,
+                    confirmation.guestsYouth > 0
+                      ? `${confirmation.guestsYouth} ${t.guestsYouth}`
+                      : null,
+                    confirmation.guestsChildren > 0
+                      ? `${confirmation.guestsChildren} ${t.guestsChildren}`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || String(confirmation.guests)}
+                </strong>
               </div>
               <div>
                 <span className="muted-text">{t.estimatedTotalShort}</span>
@@ -365,16 +417,47 @@ export default function BookingPage() {
                   required
                 />
               </div>
-              <div className="field">
-                <label htmlFor="guests">{t.guests}</label>
-                <input
-                  id="guests"
-                  type="number"
-                  min={1}
-                  max={property.maxGuests}
-                  value={form.guests}
-                  onChange={(event) => setForm({ ...form, guests: Number(event.target.value) })}
-                />
+              <div className="field-row guest-age-fields">
+                <div className="field">
+                  <label htmlFor="guestsAdults">{t.guestsAdults}</label>
+                  <input
+                    id="guestsAdults"
+                    type="number"
+                    min={0}
+                    max={property.maxGuests}
+                    value={form.guestsAdults}
+                    onChange={(event) =>
+                      setForm({ ...form, guestsAdults: Number(event.target.value) || 0 })
+                    }
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="guestsYouth">{t.guestsYouth}</label>
+                  <input
+                    id="guestsYouth"
+                    type="number"
+                    min={0}
+                    max={property.maxGuests}
+                    value={form.guestsYouth}
+                    onChange={(event) =>
+                      setForm({ ...form, guestsYouth: Number(event.target.value) || 0 })
+                    }
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="guestsChildren">{t.guestsChildren}</label>
+                  <input
+                    id="guestsChildren"
+                    type="number"
+                    min={0}
+                    max={property.maxGuests}
+                    value={form.guestsChildren}
+                    onChange={(event) =>
+                      setForm({ ...form, guestsChildren: Number(event.target.value) || 0 })
+                    }
+                  />
+                </div>
               </div>
 
               {quoteTotal !== null && (

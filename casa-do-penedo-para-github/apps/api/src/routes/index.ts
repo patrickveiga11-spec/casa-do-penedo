@@ -153,6 +153,9 @@ export async function reservationRoutes(app: FastifyInstance) {
         checkIn,
         checkOut,
         guests: body.guests,
+        guestsChildren: body.guestsChildren,
+        guestsYouth: body.guestsYouth,
+        guestsAdults: body.guestsAdults,
         totalPrice,
         discountPercent: discountPercent > 0 ? discountPercent : null,
         currency: property.currency,
@@ -335,7 +338,15 @@ export async function reservationRoutes(app: FastifyInstance) {
 
     const checkIn = body.checkIn ? toDateOnly(body.checkIn) : existing.checkIn;
     const checkOut = body.checkOut ? toDateOnly(body.checkOut) : existing.checkOut;
+    const guestsChanged =
+      body.guests !== undefined ||
+      body.guestsChildren !== undefined ||
+      body.guestsYouth !== undefined ||
+      body.guestsAdults !== undefined;
     const guests = body.guests ?? existing.guests;
+    const guestsChildren = body.guestsChildren ?? existing.guestsChildren;
+    const guestsYouth = body.guestsYouth ?? existing.guestsYouth;
+    const guestsAdults = body.guestsAdults ?? existing.guestsAdults;
 
     if (checkOut <= checkIn) {
       return reply.status(400).send({ error: "Check-out deve ser posterior ao check-in" });
@@ -386,7 +397,9 @@ export async function reservationRoutes(app: FastifyInstance) {
         ...(body.guestPhone !== undefined ? { guestPhone: body.guestPhone } : {}),
         ...(body.checkIn !== undefined ? { checkIn } : {}),
         ...(body.checkOut !== undefined ? { checkOut } : {}),
-        ...(body.guests !== undefined ? { guests } : {}),
+        ...(guestsChanged
+          ? { guests, guestsChildren, guestsYouth, guestsAdults }
+          : {}),
         ...(body.notes !== undefined ? { notes: body.notes } : {}),
       },
       include: { property: true },

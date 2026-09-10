@@ -105,6 +105,9 @@ export const api = {
       checkIn?: string;
       checkOut?: string;
       guests?: number;
+      guestsChildren?: number;
+      guestsYouth?: number;
+      guestsAdults?: number;
       notes?: string | null;
     }
   ) =>
@@ -214,6 +217,9 @@ export interface Reservation {
   checkIn: string;
   checkOut: string;
   guests: number;
+  guestsChildren?: number;
+  guestsYouth?: number;
+  guestsAdults?: number;
   totalPrice: string;
   discountPercent?: string | null;
   currency: string;
@@ -301,7 +307,10 @@ export interface CreateReservationInput {
   guestPhone: string;
   checkIn: string;
   checkOut: string;
-  guests: number;
+  guests?: number;
+  guestsChildren?: number;
+  guestsYouth?: number;
+  guestsAdults?: number;
   discountPercent?: number;
 }
 
@@ -309,7 +318,10 @@ export interface QuoteInput {
   propertyId: string;
   checkIn: string;
   checkOut: string;
-  guests: number;
+  guests?: number;
+  guestsChildren?: number;
+  guestsYouth?: number;
+  guestsAdults?: number;
 }
 
 export interface CreatePricingRuleInput {

@@ -1389,8 +1389,13 @@ button {
   gap: 12px;
 }
 
+.guest-age-fields {
+  grid-template-columns: repeat(3, 1fr);
+}
+
 @media (max-width: 600px) {
-  .field-row {
+  .field-row,
+  .guest-age-fields {
     grid-template-columns: 1fr;
   }
 }

@@ -22,6 +22,7 @@ import { ReservationDetailPanel } from "../components/ReservationDetailPanel";
 import { WeekOverviewPanel } from "../components/WeekOverviewPanel";
 import { ReservationDatesLink } from "../components/ReservationDatesLink";
 import { formatDate, formatMoney, monthRange, dateKeyFromIso, parseDateKey, startOfMonth } from "../lib/format";
+import { resolveGuestCounts } from "../lib/guest-counts";
 import {
   buildWeekOverview,
   filterReservationsByTab,
@@ -50,7 +51,9 @@ export default function AdminPage() {
     guestPhone: "",
     checkIn: "",
     checkOut: "",
-    guests: 2,
+    guestsChildren: 0,
+    guestsYouth: 0,
+    guestsAdults: 2,
     discountPercent: 0,
   });
   const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
@@ -184,12 +187,20 @@ export default function AdminPage() {
       return;
     }
 
+    const guestCounts = resolveGuestCounts(form);
+    if (guestCounts.guests < 1) {
+      setQuoteTotal(null);
+      return;
+    }
+
     api
       .getQuote({
         propertyId: property.id,
         checkIn: form.checkIn,
         checkOut: form.checkOut,
-        guests: form.guests,
+        guestsChildren: guestCounts.guestsChildren,
+        guestsYouth: guestCounts.guestsYouth,
+        guestsAdults: guestCounts.guestsAdults,
       })
       .then((quote) => {
         if (!quote.subtotal || quote.subtotal <= 0) {
@@ -204,7 +215,14 @@ export default function AdminPage() {
         setQuoteTotal(null);
         setFormError(err instanceof Error ? err.message : "Erro ao calcular preço");
       });
-  }, [form.checkIn, form.checkOut, form.guests, property?.id]);
+  }, [
+    form.checkIn,
+    form.checkOut,
+    form.guestsChildren,
+    form.guestsYouth,
+    form.guestsAdults,
+    property?.id,
+  ]);
 
   function openReservationOnCalendar(reservation: Reservation) {
     setCalendarMonth(parseDateKey(dateKeyFromIso(reservation.checkIn)));
@@ -338,12 +356,21 @@ export default function AdminPage() {
     setSubmitting(true);
     setFormError(null);
 
+    const guestCounts = resolveGuestCounts(form);
+    if (guestCounts.guests < 1) {
+      setFormError("Indica pelo menos 1 hóspede");
+      setSubmitting(false);
+      return;
+    }
+
     try {
       const availability = await api.checkAvailability({
         propertyId: property.id,
         checkIn: form.checkIn,
         checkOut: form.checkOut,
-        guests: form.guests,
+        guestsChildren: guestCounts.guestsChildren,
+        guestsYouth: guestCounts.guestsYouth,
+        guestsAdults: guestCounts.guestsAdults,
       });
 
       if (!availability.available) {
@@ -362,7 +389,9 @@ export default function AdminPage() {
           guestPhone: form.guestPhone.trim(),
           checkIn: form.checkIn,
           checkOut: form.checkOut,
-          guests: form.guests,
+          guestsChildren: guestCounts.guestsChildren,
+          guestsYouth: guestCounts.guestsYouth,
+          guestsAdults: guestCounts.guestsAdults,
           discountPercent: form.discountPercent > 0 ? form.discountPercent : undefined,
         },
         true
@@ -384,7 +413,9 @@ export default function AdminPage() {
         guestPhone: "",
         checkIn: "",
         checkOut: "",
-        guests: 2,
+        guestsChildren: 0,
+        guestsYouth: 0,
+        guestsAdults: 2,
         discountPercent: 0,
       });
       await loadAll(property);
@@ -946,16 +977,47 @@ export default function AdminPage() {
                 onChange={(checkOut) => setForm({ ...form, checkOut })}
                 required
               />
-              <div className="field">
-                <label htmlFor="guests">Hóspedes</label>
-                <input
-                  id="guests"
-                  type="number"
-                  min={1}
-                  max={property.maxGuests}
-                  value={form.guests}
-                  onChange={(event) => setForm({ ...form, guests: Number(event.target.value) })}
-                />
+              <div className="field-row guest-age-fields">
+                <div className="field">
+                  <label htmlFor="guestsAdults">Adultos (18+)</label>
+                  <input
+                    id="guestsAdults"
+                    type="number"
+                    min={0}
+                    max={property.maxGuests}
+                    value={form.guestsAdults}
+                    onChange={(event) =>
+                      setForm({ ...form, guestsAdults: Number(event.target.value) || 0 })
+                    }
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="guestsYouth">Jovens (13–17)</label>
+                  <input
+                    id="guestsYouth"
+                    type="number"
+                    min={0}
+                    max={property.maxGuests}
+                    value={form.guestsYouth}
+                    onChange={(event) =>
+                      setForm({ ...form, guestsYouth: Number(event.target.value) || 0 })
+                    }
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="guestsChildren">Crianças (0–12)</label>
+                  <input
+                    id="guestsChildren"
+                    type="number"
+                    min={0}
+                    max={property.maxGuests}
+                    value={form.guestsChildren}
+                    onChange={(event) =>
+                      setForm({ ...form, guestsChildren: Number(event.target.value) || 0 })
+                    }
+                  />
+                </div>
               </div>
               <div className="field">
                 <label htmlFor="discountPercent">Desconto (%)</label>

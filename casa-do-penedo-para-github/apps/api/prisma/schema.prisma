@@ -83,6 +83,9 @@ model Reservation {
   checkIn         DateTime          @db.Date
   checkOut        DateTime          @db.Date
   guests          Int               @default(1)
+  guestsChildren  Int               @default(0)
+  guestsYouth     Int               @default(0)
+  guestsAdults    Int               @default(1)
   totalPrice      Decimal           @db.Decimal(10, 2)
   discountPercent Decimal?          @db.Decimal(5, 2)
   currency        String            @default("EUR")

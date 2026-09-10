@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Property, Reservation } from "@prisma/client";
+import { formatGuestBreakdown } from "../lib/guest-counts.js";
 import {
   isAppleMailbox,
   isFreeEmailAddress,
@@ -13,6 +14,10 @@ import {
   shouldUseTextOnlyGuestEmail,
   shouldUseTextOnlyOwnerEmail,
 } from "./brevo-sender.js";
+
+function guestsLabel(reservation: Reservation): string {
+  return formatGuestBreakdown(reservation);
+}
 
 interface ReservationEmailInput {
   reservation: Reservation;
@@ -214,7 +219,7 @@ function buildEmailContent({ reservation, property }: ReservationEmailInput) {
     "",
     `Check-in: ${checkIn}`,
     `Check-out: ${checkOut}`,
-    `Hóspedes: ${reservation.guests}`,
+    `Hóspedes: ${guestsLabel(reservation)}`,
     discountLine,
     `Total estimado: ${total}`,
     "",
@@ -238,7 +243,7 @@ function buildEmailContent({ reservation, property }: ReservationEmailInput) {
       <p>
         Check-in: <strong>${checkIn}</strong><br/>
         Check-out: <strong>${checkOut}</strong><br/>
-        Hóspedes: <strong>${reservation.guests}</strong><br/>
+        Hóspedes: <strong>${guestsLabel(reservation)}</strong><br/>
         ${discountPercent > 0 ? `Desconto: <strong>${discountPercent}%</strong><br/>` : ""}
         Total estimado: <strong>${total}</strong>
       </p>
@@ -300,7 +305,7 @@ function buildFinalConfirmationEmailContent(
     "",
     `Check-in: ${checkIn}`,
     `Check-out: ${checkOut}`,
-    `Hóspedes: ${reservation.guests}`,
+    `Hóspedes: ${guestsLabel(reservation)}`,
     discountLine,
     `Valor a pagar: ${total}`,
     "",
@@ -335,7 +340,7 @@ function buildFinalConfirmationEmailContent(
       <table style="width: 100%; border-collapse: collapse; margin: 24px 0;">
         <tr><td style="padding: 8px 0; color: #6b7280;">Check-in</td><td style="padding: 8px 0;"><strong>${checkIn}</strong></td></tr>
         <tr><td style="padding: 8px 0; color: #6b7280;">Check-out</td><td style="padding: 8px 0;"><strong>${checkOut}</strong></td></tr>
-        <tr><td style="padding: 8px 0; color: #6b7280;">Hóspedes</td><td style="padding: 8px 0;"><strong>${reservation.guests}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #6b7280;">Hóspedes</td><td style="padding: 8px 0;"><strong>${guestsLabel(reservation)}</strong></td></tr>
         ${discountRow}
         <tr><td style="padding: 8px 0; color: #6b7280;">Valor a pagar</td><td style="padding: 8px 0;"><strong style="font-size: 1.1em;">${total}</strong></td></tr>
       </table>
@@ -451,7 +456,7 @@ function buildCancellationEmailContent({ reservation, property }: ReservationEma
     "",
     `Check-in: ${checkIn}`,
     `Check-out: ${checkOut}`,
-    `Hóspedes: ${reservation.guests}`,
+    `Hóspedes: ${guestsLabel(reservation)}`,
     "",
     "Se tiveres dúvidas ou quiseres fazer uma nova reserva, responde a este email.",
     "",
@@ -466,7 +471,7 @@ function buildCancellationEmailContent({ reservation, property }: ReservationEma
       <table style="width: 100%; border-collapse: collapse; margin: 24px 0;">
         <tr><td style="padding: 8px 0; color: #6b7280;">Check-in</td><td style="padding: 8px 0;"><strong>${checkIn}</strong></td></tr>
         <tr><td style="padding: 8px 0; color: #6b7280;">Check-out</td><td style="padding: 8px 0;"><strong>${checkOut}</strong></td></tr>
-        <tr><td style="padding: 8px 0; color: #6b7280;">Hóspedes</td><td style="padding: 8px 0;"><strong>${reservation.guests}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #6b7280;">Hóspedes</td><td style="padding: 8px 0;"><strong>${guestsLabel(reservation)}</strong></td></tr>
       </table>
       <p>Se tiveres dúvidas ou quiseres fazer uma nova reserva, responde a este email.</p>
       <p style="color: #6b7280; margin-top: 32px;">Casa do Penedo</p>
@@ -507,7 +512,7 @@ export function buildOwnerNewReservationEmailContent({ reservation, property }: 
     "",
     `Check-in: ${checkIn}`,
     `Check-out: ${checkOut}`,
-    `Hóspedes: ${reservation.guests}`,
+    `Hóspedes: ${guestsLabel(reservation)}`,
     `Total estimado: ${total}`,
     "",
     "Estado: pendente de validação",
@@ -531,7 +536,7 @@ export function buildOwnerNewReservationEmailContent({ reservation, property }: 
         Telemóvel: <strong>${reservation.guestPhone ?? "—"}</strong><br/>
         Check-in: <strong>${checkIn}</strong><br/>
         Check-out: <strong>${checkOut}</strong><br/>
-        Hóspedes: <strong>${reservation.guests}</strong><br/>
+        Hóspedes: <strong>${guestsLabel(reservation)}</strong><br/>
         Total estimado: <strong>${total}</strong>
       </p>
       <p>Estado: pendente de validação</p>

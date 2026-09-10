@@ -3,6 +3,7 @@ import { api, type Property, type Reservation } from "../api";
 import { DateField } from "./DateField";
 import { ReservationCommsTimeline } from "./ReservationCommsTimeline";
 import { dateKeyFromIso, formatDate, formatMoney } from "../lib/format";
+import { formatGuestBreakdown } from "../lib/guest-counts";
 import { PAYMENT_STATUS_LABELS, paymentBadgeClass } from "../lib/reservation-filters";
 
 interface ReservationDetailPanelProps {
@@ -50,7 +51,11 @@ export function ReservationDetailPanel({
   const [editGuestPhone, setEditGuestPhone] = useState(reservation.guestPhone ?? "");
   const [editCheckIn, setEditCheckIn] = useState(dateKeyFromIso(reservation.checkIn));
   const [editCheckOut, setEditCheckOut] = useState(dateKeyFromIso(reservation.checkOut));
-  const [editGuests, setEditGuests] = useState(reservation.guests);
+  const [editGuestsChildren, setEditGuestsChildren] = useState(reservation.guestsChildren ?? 0);
+  const [editGuestsYouth, setEditGuestsYouth] = useState(reservation.guestsYouth ?? 0);
+  const [editGuestsAdults, setEditGuestsAdults] = useState(
+    reservation.guestsAdults ?? reservation.guests
+  );
   const [editNotes, setEditNotes] = useState(reservation.notes ?? "");
   const [savingDetails, setSavingDetails] = useState(false);
 
@@ -69,12 +74,28 @@ export function ReservationDetailPanel({
     setEditGuestPhone(reservation.guestPhone ?? "");
     setEditCheckIn(dateKeyFromIso(reservation.checkIn));
     setEditCheckOut(dateKeyFromIso(reservation.checkOut));
-    setEditGuests(reservation.guests);
+    setEditGuestsChildren(reservation.guestsChildren ?? 0);
+    setEditGuestsYouth(reservation.guestsYouth ?? 0);
+    setEditGuestsAdults(reservation.guestsAdults ?? reservation.guests);
     setEditNotes(reservation.notes ?? "");
     setPaymentStatus(reservation.paymentStatus ?? "PENDING");
     setAmountPaid(reservation.amountPaid != null ? String(reservation.amountPaid) : "");
     setEditingDetails(false);
-  }, [reservation.id, reservation.guestName, reservation.guestEmail, reservation.guestPhone, reservation.checkIn, reservation.checkOut, reservation.guests, reservation.notes, reservation.paymentStatus, reservation.amountPaid]);
+  }, [
+    reservation.id,
+    reservation.guestName,
+    reservation.guestEmail,
+    reservation.guestPhone,
+    reservation.checkIn,
+    reservation.checkOut,
+    reservation.guests,
+    reservation.guestsChildren,
+    reservation.guestsYouth,
+    reservation.guestsAdults,
+    reservation.notes,
+    reservation.paymentStatus,
+    reservation.amountPaid,
+  ]);
 
   const detailFinalTotal =
     detailSubtotal !== null ? Math.round(detailSubtotal * (1 - editDiscount / 100) * 100) / 100 : null;
@@ -90,7 +111,9 @@ export function ReservationDetailPanel({
         guestPhone: editGuestPhone.trim(),
         checkIn: editCheckIn,
         checkOut: editCheckOut,
-        guests: editGuests,
+        guestsChildren: editGuestsChildren,
+        guestsYouth: editGuestsYouth,
+        guestsAdults: editGuestsAdults,
         notes: editNotes.trim() || null,
       });
       onNotice("Dados da reserva guardados.");
@@ -178,7 +201,9 @@ export function ReservationDetailPanel({
                 setEditGuestPhone(reservation.guestPhone ?? "");
                 setEditCheckIn(dateKeyFromIso(reservation.checkIn));
                 setEditCheckOut(dateKeyFromIso(reservation.checkOut));
-                setEditGuests(reservation.guests);
+                setEditGuestsChildren(reservation.guestsChildren ?? 0);
+                setEditGuestsYouth(reservation.guestsYouth ?? 0);
+                setEditGuestsAdults(reservation.guestsAdults ?? reservation.guests);
                 setEditNotes(reservation.notes ?? "");
               }}
             >
@@ -235,16 +260,40 @@ export function ReservationDetailPanel({
               required
             />
           </div>
-          <div className="field">
-            <label htmlFor={`edit-guests-${reservation.id}`}>Hóspedes</label>
-            <input
-              id={`edit-guests-${reservation.id}`}
-              type="number"
-              min={1}
-              max={property.maxGuests}
-              value={editGuests}
-              onChange={(event) => setEditGuests(Number(event.target.value))}
-            />
+          <div className="field-row guest-age-fields">
+            <div className="field">
+              <label htmlFor={`edit-guests-adults-${reservation.id}`}>Adultos (18+)</label>
+              <input
+                id={`edit-guests-adults-${reservation.id}`}
+                type="number"
+                min={0}
+                max={property.maxGuests}
+                value={editGuestsAdults}
+                onChange={(event) => setEditGuestsAdults(Number(event.target.value) || 0)}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor={`edit-guests-youth-${reservation.id}`}>Jovens (13–17)</label>
+              <input
+                id={`edit-guests-youth-${reservation.id}`}
+                type="number"
+                min={0}
+                max={property.maxGuests}
+                value={editGuestsYouth}
+                onChange={(event) => setEditGuestsYouth(Number(event.target.value) || 0)}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor={`edit-guests-children-${reservation.id}`}>Crianças (0–12)</label>
+              <input
+                id={`edit-guests-children-${reservation.id}`}
+                type="number"
+                min={0}
+                max={property.maxGuests}
+                value={editGuestsChildren}
+                onChange={(event) => setEditGuestsChildren(Number(event.target.value) || 0)}
+              />
+            </div>
           </div>
           <div className="field">
             <label htmlFor={`edit-notes-${reservation.id}`}>Notas internas</label>
@@ -278,7 +327,7 @@ export function ReservationDetailPanel({
             </div>
             <div>
               <span className="muted-text">Hóspedes</span>
-              <strong>{reservation.guests}</strong>
+              <strong>{formatGuestBreakdown(reservation)}</strong>
             </div>
             <div>
               <span className="muted-text">Valor final</span>

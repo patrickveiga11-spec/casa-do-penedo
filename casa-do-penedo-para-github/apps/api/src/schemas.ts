@@ -1,6 +1,37 @@
 import { z } from "zod";
+import { resolveGuestCounts } from "./lib/guest-counts.js";
 
-export const createReservationSchema = z.object({
+const guestAgeFields = {
+  guestsChildren: z.number().int().min(0).max(10).optional(),
+  guestsYouth: z.number().int().min(0).max(10).optional(),
+  guestsAdults: z.number().int().min(0).max(10).optional(),
+  guests: z.number().int().min(1).max(10).optional(),
+};
+
+function withResolvedGuests<T extends z.ZodRawShape>(shape: T) {
+  return z.object(shape).superRefine((data, ctx) => {
+    const resolved = resolveGuestCounts(data);
+    if (resolved.guests < 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Indica pelo menos 1 hóspede",
+        path: ["guestsAdults"],
+      });
+    }
+    if (resolved.guests > 10) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Máximo de 10 hóspedes",
+        path: ["guests"],
+      });
+    }
+  }).transform((data) => {
+    const resolved = resolveGuestCounts(data);
+    return { ...data, ...resolved };
+  });
+}
+
+export const createReservationSchema = withResolvedGuests({
   propertyId: z.string(),
   channelId: z.string().optional(),
   guestName: z.string().min(1),
@@ -8,7 +39,7 @@ export const createReservationSchema = z.object({
   guestPhone: z.string().trim().min(4, "Telemóvel é obrigatório"),
   checkIn: z.string(),
   checkOut: z.string(),
-  guests: z.number().int().min(1).max(10).default(1),
+  ...guestAgeFields,
   notes: z.string().optional(),
   discountPercent: z.number().min(0).max(100).optional(),
 });
@@ -22,15 +53,46 @@ export const updateReservationSchema = z
     message: "Indica desconto ou valor final",
   });
 
-export const updateReservationDetailsSchema = z.object({
-  guestName: z.string().min(1).optional(),
-  guestEmail: z.string().email().nullable().optional(),
-  guestPhone: z.string().trim().min(4).optional(),
-  checkIn: z.string().optional(),
-  checkOut: z.string().optional(),
-  guests: z.number().int().min(1).max(10).optional(),
-  notes: z.string().max(4000).nullable().optional(),
-});
+export const updateReservationDetailsSchema = z
+  .object({
+    guestName: z.string().min(1).optional(),
+    guestEmail: z.string().email().nullable().optional(),
+    guestPhone: z.string().trim().min(4).optional(),
+    checkIn: z.string().optional(),
+    checkOut: z.string().optional(),
+    ...guestAgeFields,
+    notes: z.string().max(4000).nullable().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const hasAnyCategory =
+      data.guestsChildren !== undefined ||
+      data.guestsYouth !== undefined ||
+      data.guestsAdults !== undefined ||
+      data.guests !== undefined;
+    if (!hasAnyCategory) return;
+    const resolved = resolveGuestCounts({
+      guestsChildren: data.guestsChildren,
+      guestsYouth: data.guestsYouth,
+      guestsAdults: data.guestsAdults,
+      guests: data.guests,
+    });
+    if (resolved.guests < 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Indica pelo menos 1 hóspede",
+        path: ["guestsAdults"],
+      });
+    }
+  })
+  .transform((data) => {
+    const hasAnyCategory =
+      data.guestsChildren !== undefined ||
+      data.guestsYouth !== undefined ||
+      data.guestsAdults !== undefined ||
+      data.guests !== undefined;
+    if (!hasAnyCategory) return data;
+    return { ...data, ...resolveGuestCounts(data) };
+  });
 
 export const updateReservationPaymentSchema = z.object({
   paymentStatus: z.enum(["PENDING", "PARTIAL", "PAID"]),
@@ -70,9 +132,9 @@ export const updateBlockSchema = z
     message: "Indica pelo menos um campo para atualizar",
   });
 
-export const quoteSchema = z.object({
+export const quoteSchema = withResolvedGuests({
   propertyId: z.string(),
   checkIn: z.string(),
   checkOut: z.string(),
-  guests: z.number().int().min(1).max(10).default(1),
+  ...guestAgeFields,
 });
