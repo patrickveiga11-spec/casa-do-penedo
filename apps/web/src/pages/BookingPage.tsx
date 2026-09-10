@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, type Property, type Reservation } from "../api";
 import { CalendarView } from "../components/CalendarView";
 import { DateField } from "../components/DateField";
+import { GuestAgeFields, parseGuestAgeValue, type GuestAgeValue } from "../components/GuestAgeFields";
 import { InstallAppBanner } from "../components/InstallAppBanner";
 import { LanguageSelector } from "../components/LanguageSelector";
 import { LogoHeader } from "../components/LogoHeader";
@@ -29,6 +30,18 @@ interface Confirmation {
   emailSent: boolean;
 }
 
+function formGuestCounts(form: {
+  guestsChildren: GuestAgeValue;
+  guestsYouth: GuestAgeValue;
+  guestsAdults: GuestAgeValue;
+}) {
+  return resolveGuestCounts({
+    guestsChildren: parseGuestAgeValue(form.guestsChildren),
+    guestsYouth: parseGuestAgeValue(form.guestsYouth),
+    guestsAdults: parseGuestAgeValue(form.guestsAdults),
+  });
+}
+
 export default function BookingPage() {
   const { t, intlLocale, formatMessage } = useLanguage();
   const [property, setProperty] = useState<Property | null>(null);
@@ -39,7 +52,16 @@ export default function BookingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [section, setSection] = useState<PublicSection>("disponibilidades");
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    guestName: string;
+    guestEmail: string;
+    guestPhone: string;
+    checkIn: string;
+    checkOut: string;
+    guestsChildren: GuestAgeValue;
+    guestsYouth: GuestAgeValue;
+    guestsAdults: GuestAgeValue;
+  }>({
     guestName: "",
     guestEmail: "",
     guestPhone: "",
@@ -110,7 +132,7 @@ export default function BookingPage() {
       return;
     }
 
-    const guestCounts = resolveGuestCounts(form);
+    const guestCounts = formGuestCounts(form);
     if (guestCounts.guests < 1) {
       setQuoteTotal(null);
       return;
@@ -162,7 +184,7 @@ export default function BookingPage() {
       return;
     }
 
-    const guestCounts = resolveGuestCounts(form);
+    const guestCounts = formGuestCounts(form);
     if (guestCounts.guests < 1) {
       setFormError(t.guestsAtLeastOne);
       setSubmitting(false);
@@ -417,48 +439,21 @@ export default function BookingPage() {
                   required
                 />
               </div>
-              <div className="field-row guest-age-fields">
-                <div className="field">
-                  <label htmlFor="guestsAdults">{t.guestsAdults}</label>
-                  <input
-                    id="guestsAdults"
-                    type="number"
-                    min={0}
-                    max={property.maxGuests}
-                    value={form.guestsAdults}
-                    onChange={(event) =>
-                      setForm({ ...form, guestsAdults: Number(event.target.value) || 0 })
-                    }
-                    required
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="guestsYouth">{t.guestsYouth}</label>
-                  <input
-                    id="guestsYouth"
-                    type="number"
-                    min={0}
-                    max={property.maxGuests}
-                    value={form.guestsYouth}
-                    onChange={(event) =>
-                      setForm({ ...form, guestsYouth: Number(event.target.value) || 0 })
-                    }
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="guestsChildren">{t.guestsChildren}</label>
-                  <input
-                    id="guestsChildren"
-                    type="number"
-                    min={0}
-                    max={property.maxGuests}
-                    value={form.guestsChildren}
-                    onChange={(event) =>
-                      setForm({ ...form, guestsChildren: Number(event.target.value) || 0 })
-                    }
-                  />
-                </div>
-              </div>
+              <GuestAgeFields
+                maxGuests={property.maxGuests}
+                adults={form.guestsAdults}
+                youth={form.guestsYouth}
+                children={form.guestsChildren}
+                onAdultsChange={(guestsAdults) => setForm({ ...form, guestsAdults })}
+                onYouthChange={(guestsYouth) => setForm({ ...form, guestsYouth })}
+                onChildrenChange={(guestsChildren) => setForm({ ...form, guestsChildren })}
+                labels={{
+                  adults: t.guestsAdults,
+                  youth: t.guestsYouth,
+                  children: t.guestsChildren,
+                  total: t.guestsTotal,
+                }}
+              />
 
               {quoteTotal !== null && (
                 <div className="quote-box">

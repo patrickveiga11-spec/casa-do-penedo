@@ -11,6 +11,7 @@ import {
 } from "../api";
 import { CalendarView } from "../components/CalendarView";
 import { DateField } from "../components/DateField";
+import { GuestAgeFields, parseGuestAgeValue, type GuestAgeValue } from "../components/GuestAgeFields";
 import { GuestsRegistryPanel } from "../components/GuestsRegistryPanel";
 import { MonthlyRevenueChart } from "../components/MonthlyRevenueChart";
 import { LogoHeader } from "../components/LogoHeader";
@@ -45,7 +46,17 @@ export default function AdminPage() {
   const [blocks, setBlocks] = useState<AvailabilityBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    guestName: string;
+    guestEmail: string;
+    guestPhone: string;
+    checkIn: string;
+    checkOut: string;
+    guestsChildren: GuestAgeValue;
+    guestsYouth: GuestAgeValue;
+    guestsAdults: GuestAgeValue;
+    discountPercent: number;
+  }>({
     guestName: "",
     guestEmail: "",
     guestPhone: "",
@@ -187,7 +198,11 @@ export default function AdminPage() {
       return;
     }
 
-    const guestCounts = resolveGuestCounts(form);
+    const guestCounts = resolveGuestCounts({
+      guestsChildren: parseGuestAgeValue(form.guestsChildren),
+      guestsYouth: parseGuestAgeValue(form.guestsYouth),
+      guestsAdults: parseGuestAgeValue(form.guestsAdults),
+    });
     if (guestCounts.guests < 1) {
       setQuoteTotal(null);
       return;
@@ -356,7 +371,11 @@ export default function AdminPage() {
     setSubmitting(true);
     setFormError(null);
 
-    const guestCounts = resolveGuestCounts(form);
+    const guestCounts = resolveGuestCounts({
+      guestsChildren: parseGuestAgeValue(form.guestsChildren),
+      guestsYouth: parseGuestAgeValue(form.guestsYouth),
+      guestsAdults: parseGuestAgeValue(form.guestsAdults),
+    });
     if (guestCounts.guests < 1) {
       setFormError("Indica pelo menos 1 hóspede");
       setSubmitting(false);
@@ -977,48 +996,21 @@ export default function AdminPage() {
                 onChange={(checkOut) => setForm({ ...form, checkOut })}
                 required
               />
-              <div className="field-row guest-age-fields">
-                <div className="field">
-                  <label htmlFor="guestsAdults">Adultos (18+)</label>
-                  <input
-                    id="guestsAdults"
-                    type="number"
-                    min={0}
-                    max={property.maxGuests}
-                    value={form.guestsAdults}
-                    onChange={(event) =>
-                      setForm({ ...form, guestsAdults: Number(event.target.value) || 0 })
-                    }
-                    required
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="guestsYouth">Jovens (13–17)</label>
-                  <input
-                    id="guestsYouth"
-                    type="number"
-                    min={0}
-                    max={property.maxGuests}
-                    value={form.guestsYouth}
-                    onChange={(event) =>
-                      setForm({ ...form, guestsYouth: Number(event.target.value) || 0 })
-                    }
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="guestsChildren">Crianças (0–12)</label>
-                  <input
-                    id="guestsChildren"
-                    type="number"
-                    min={0}
-                    max={property.maxGuests}
-                    value={form.guestsChildren}
-                    onChange={(event) =>
-                      setForm({ ...form, guestsChildren: Number(event.target.value) || 0 })
-                    }
-                  />
-                </div>
-              </div>
+              <GuestAgeFields
+                maxGuests={property.maxGuests}
+                adults={form.guestsAdults}
+                youth={form.guestsYouth}
+                children={form.guestsChildren}
+                onAdultsChange={(guestsAdults) => setForm({ ...form, guestsAdults })}
+                onYouthChange={(guestsYouth) => setForm({ ...form, guestsYouth })}
+                onChildrenChange={(guestsChildren) => setForm({ ...form, guestsChildren })}
+                labels={{
+                  adults: "Adultos (18+)",
+                  youth: "Jovens (13–17)",
+                  children: "Crianças (0–12)",
+                  total: "Total de hóspedes",
+                }}
+              />
               <div className="field">
                 <label htmlFor="discountPercent">Desconto (%)</label>
                 <input

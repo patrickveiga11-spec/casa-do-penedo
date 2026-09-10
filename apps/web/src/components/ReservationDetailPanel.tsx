@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type Property, type Reservation } from "../api";
 import { DateField } from "./DateField";
+import { GuestAgeFields, parseGuestAgeValue, type GuestAgeValue } from "./GuestAgeFields";
 import { ReservationCommsTimeline } from "./ReservationCommsTimeline";
 import { dateKeyFromIso, formatDate, formatMoney } from "../lib/format";
 import { formatGuestBreakdown } from "../lib/guest-counts";
@@ -51,9 +52,11 @@ export function ReservationDetailPanel({
   const [editGuestPhone, setEditGuestPhone] = useState(reservation.guestPhone ?? "");
   const [editCheckIn, setEditCheckIn] = useState(dateKeyFromIso(reservation.checkIn));
   const [editCheckOut, setEditCheckOut] = useState(dateKeyFromIso(reservation.checkOut));
-  const [editGuestsChildren, setEditGuestsChildren] = useState(reservation.guestsChildren ?? 0);
-  const [editGuestsYouth, setEditGuestsYouth] = useState(reservation.guestsYouth ?? 0);
-  const [editGuestsAdults, setEditGuestsAdults] = useState(
+  const [editGuestsChildren, setEditGuestsChildren] = useState<GuestAgeValue>(
+    reservation.guestsChildren ?? 0
+  );
+  const [editGuestsYouth, setEditGuestsYouth] = useState<GuestAgeValue>(reservation.guestsYouth ?? 0);
+  const [editGuestsAdults, setEditGuestsAdults] = useState<GuestAgeValue>(
     reservation.guestsAdults ?? reservation.guests
   );
   const [editNotes, setEditNotes] = useState(reservation.notes ?? "");
@@ -111,9 +114,9 @@ export function ReservationDetailPanel({
         guestPhone: editGuestPhone.trim(),
         checkIn: editCheckIn,
         checkOut: editCheckOut,
-        guestsChildren: editGuestsChildren,
-        guestsYouth: editGuestsYouth,
-        guestsAdults: editGuestsAdults,
+        guestsChildren: parseGuestAgeValue(editGuestsChildren),
+        guestsYouth: parseGuestAgeValue(editGuestsYouth),
+        guestsAdults: parseGuestAgeValue(editGuestsAdults),
         notes: editNotes.trim() || null,
       });
       onNotice("Dados da reserva guardados.");
@@ -260,41 +263,22 @@ export function ReservationDetailPanel({
               required
             />
           </div>
-          <div className="field-row guest-age-fields">
-            <div className="field">
-              <label htmlFor={`edit-guests-adults-${reservation.id}`}>Adultos (18+)</label>
-              <input
-                id={`edit-guests-adults-${reservation.id}`}
-                type="number"
-                min={0}
-                max={property.maxGuests}
-                value={editGuestsAdults}
-                onChange={(event) => setEditGuestsAdults(Number(event.target.value) || 0)}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor={`edit-guests-youth-${reservation.id}`}>Jovens (13–17)</label>
-              <input
-                id={`edit-guests-youth-${reservation.id}`}
-                type="number"
-                min={0}
-                max={property.maxGuests}
-                value={editGuestsYouth}
-                onChange={(event) => setEditGuestsYouth(Number(event.target.value) || 0)}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor={`edit-guests-children-${reservation.id}`}>Crianças (0–12)</label>
-              <input
-                id={`edit-guests-children-${reservation.id}`}
-                type="number"
-                min={0}
-                max={property.maxGuests}
-                value={editGuestsChildren}
-                onChange={(event) => setEditGuestsChildren(Number(event.target.value) || 0)}
-              />
-            </div>
-          </div>
+          <GuestAgeFields
+            idPrefix={`edit-guests-${reservation.id}`}
+            maxGuests={property.maxGuests}
+            adults={editGuestsAdults}
+            youth={editGuestsYouth}
+            children={editGuestsChildren}
+            onAdultsChange={setEditGuestsAdults}
+            onYouthChange={setEditGuestsYouth}
+            onChildrenChange={setEditGuestsChildren}
+            labels={{
+              adults: "Adultos (18+)",
+              youth: "Jovens (13–17)",
+              children: "Crianças (0–12)",
+              total: "Total de hóspedes",
+            }}
+          />
           <div className="field">
             <label htmlFor={`edit-notes-${reservation.id}`}>Notas internas</label>
             <textarea

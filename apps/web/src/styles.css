@@ -1393,6 +1393,22 @@ button {
   grid-template-columns: repeat(3, 1fr);
 }
 
+.guest-age-group {
+  display: grid;
+  gap: 8px;
+}
+
+.guest-age-total {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--muted, #5b6b63);
+}
+
+.guest-age-total strong {
+  color: inherit;
+  font-weight: 700;
+}
+
 @media (max-width: 600px) {
   .field-row,
   .guest-age-fields {
