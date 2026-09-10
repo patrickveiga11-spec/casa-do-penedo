@@ -9,7 +9,7 @@ async function main() {
     create: {
       name: "Casa do Penedo",
       slug: "casa-do-penedo",
-      address: "Fafe, Braga, Portugal",
+      address: "Oliveira de Frades, Portugal",
       basePrice: 150,
       currency: "EUR",
       maxGuests: 10,

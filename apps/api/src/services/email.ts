@@ -229,7 +229,7 @@ function buildEmailContent({ reservation, property }: ReservationEmailInput) {
     "",
     "Cumprimentos,",
     "Casa do Penedo",
-    "Fafe, Braga, Portugal",
+    "Oliveira de Frades, Portugal",
     "casa_do_penedo@casadopenedo.pt",
   ]
     .filter(Boolean)
@@ -251,7 +251,7 @@ function buildEmailContent({ reservation, property }: ReservationEmailInput) {
       <p>
         Cumprimentos,<br/>
         Casa do Penedo<br/>
-        Fafe, Braga, Portugal
+        Oliveira de Frades, Portugal
       </p>
     </div>
   `;
@@ -321,7 +321,7 @@ function buildFinalConfirmationEmailContent(
     "",
     "Cumprimentos,",
     "Casa do Penedo",
-    "Fafe, Braga, Portugal",
+    "Oliveira de Frades, Portugal",
     "casa_do_penedo@casadopenedo.pt",
   ]
     .filter(Boolean)
@@ -521,7 +521,7 @@ export function buildOwnerNewReservationEmailContent({ reservation, property }: 
     "https://casa-do-penedo.vercel.app/gestao",
     "",
     "Casa do Penedo",
-    "Fafe, Braga, Portugal",
+    "Oliveira de Frades, Portugal",
     "casa_do_penedo@casadopenedo.pt",
   ]
     .filter(Boolean)
@@ -794,7 +794,7 @@ function buildIdentityFooterText() {
     "",
     "—",
     "Casa do Penedo",
-    "Fafe, Braga, Portugal",
+    "Oliveira de Frades, Portugal",
     `Web: ${getPublicSiteUrl()}`,
     "Email: casa_do_penedo@casadopenedo.pt",
   ].join("\n");
@@ -806,7 +806,7 @@ function buildIdentityFooterHtml() {
     <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0 16px;" />
     <p style="color: #6b7280; font-size: 0.85em; line-height: 1.5; margin: 0;">
       <strong style="color: #374151;">Casa do Penedo</strong><br/>
-      Fafe, Braga, Portugal<br/>
+      Oliveira de Frades, Portugal<br/>
       <a href="${site}" style="color: #2d6a4f;">${site.replace(/^https?:\/\//, "")}</a><br/>
       <a href="mailto:casa_do_penedo@casadopenedo.pt" style="color: #2d6a4f;">casa_do_penedo@casadopenedo.pt</a>
     </p>
@@ -1170,7 +1170,7 @@ async function sendViaSmtp(payload: EmailPayload): Promise<EmailSendResult> {
 async function sendEmail(payload: EmailPayload): Promise<EmailSendResult> {
   const html = payload.html ?? `<div style="font-family: Arial, sans-serif; white-space: pre-wrap;">${payload.text}</div>`;
   const identified =
-    payload.text.includes("Fafe, Braga, Portugal") && payload.text.includes("casa_do_penedo@casadopenedo.pt")
+    payload.text.includes("Oliveira de Frades, Portugal") && payload.text.includes("casa_do_penedo@casadopenedo.pt")
       ? payload
       : {
           ...payload,

@@ -11,7 +11,7 @@ const property = {
   id: "p",
   name: "Casa do Penedo",
   slug: "casa-do-penedo",
-  address: "Fafe",
+  address: "Oliveira de Frades, Portugal",
   basePrice: "100",
   currency: "EUR",
   maxGuests: 10,
